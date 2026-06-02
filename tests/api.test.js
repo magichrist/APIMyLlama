@@ -189,6 +189,86 @@ describe('API Routes', function () {
     });
   });
 
+  describe('Brute Force Protection', function () {
+    it('should lock out after 5 failed attempts', async function () {
+      for (let i = 0; i < 5; i++) {
+        const res = await request(app)
+          .post('/generate')
+          .set('Authorization', 'Bearer wrong-key')
+          .send({ prompt: 'Hello', model: 'llama3' });
+        expect(res.status).to.equal(403);
+      }
+      const res = await request(app)
+        .post('/generate')
+        .set('Authorization', 'Bearer wrong-key')
+        .send({ prompt: 'Hello', model: 'llama3' });
+      expect(res.status).to.equal(429);
+      expect(res.body.error).to.include('Too many failed attempts');
+    });
+
+    it('should include remaining seconds in lockout message', async function () {
+      for (let i = 0; i < 5; i++) {
+        await request(app)
+          .post('/generate')
+          .set('Authorization', 'Bearer wrong-key')
+          .send({ prompt: 'Hello', model: 'llama3' });
+      }
+      const res = await request(app)
+        .post('/generate')
+        .set('Authorization', 'Bearer wrong-key')
+        .send({ prompt: 'Hello', model: 'llama3' });
+      expect(res.body.error).to.match(/Try again in \d+ seconds/);
+    });
+
+    it('should reset failed count on successful auth', async function () {
+      for (let i = 0; i < 3; i++) {
+        await request(app)
+          .post('/generate')
+          .set('Authorization', 'Bearer wrong-key')
+          .send({ prompt: 'Hello', model: 'llama3' });
+      }
+      let res = await request(app)
+        .post('/generate')
+        .set('Authorization', `Bearer ${testKey}`)
+        .send({ prompt: 'Hello', model: 'llama3' });
+      expect(res.status).to.equal(200);
+
+      for (let i = 0; i < 5; i++) {
+        res = await request(app)
+          .post('/generate')
+          .set('Authorization', 'Bearer wrong-key')
+          .send({ prompt: 'Hello', model: 'llama3' });
+        expect(res.status).to.equal(403);
+      }
+      res = await request(app)
+        .post('/generate')
+        .set('Authorization', 'Bearer wrong-key')
+        .send({ prompt: 'Hello', model: 'llama3' });
+      expect(res.status).to.equal(429);
+    });
+
+    it('should lock out missing-key attempts too', async function () {
+      for (let i = 0; i < 5; i++) {
+        const res = await request(app)
+          .post('/generate')
+          .send({ prompt: 'Hello', model: 'llama3' });
+        expect(res.status).to.equal(401);
+      }
+      const res = await request(app)
+        .post('/generate')
+        .send({ prompt: 'Hello', model: 'llama3' });
+      expect(res.status).to.equal(429);
+    });
+
+    it('should lock out on health endpoint too', async function () {
+      for (let i = 0; i < 5; i++) {
+        await request(app).get('/health').set('Authorization', 'Bearer wrong-key');
+      }
+      const res = await request(app).get('/health').set('Authorization', 'Bearer wrong-key');
+      expect(res.status).to.equal(429);
+    });
+  });
+
   describe('Rate Limiting', function () {
     it('should allow requests within the rate limit', async function () {
       for (let i = 0; i < 10; i++) {

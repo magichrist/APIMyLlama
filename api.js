@@ -4,6 +4,43 @@ const { getOllamaURL, sendWebhookNotification } = require('./utils');
 
 const rateLimits = new Map();
 
+const MAX_FAILED_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MS = 15 * 60 * 1000;
+
+const failedAttempts = new Map();
+
+function getClientIp(req) {
+  return req.ip || req.socket?.remoteAddress || 'unknown';
+}
+
+function checkBruteForce(ip) {
+  const record = failedAttempts.get(ip);
+  if (!record) return null;
+  if (record.lockedUntil && Date.now() < record.lockedUntil) {
+    const remaining = Math.ceil((record.lockedUntil - Date.now()) / 1000);
+    return `Too many failed attempts. Try again in ${remaining} seconds.`;
+  }
+  if (record.lockedUntil && Date.now() >= record.lockedUntil) {
+    failedAttempts.delete(ip);
+  }
+  return null;
+}
+
+function recordFailedAttempt(ip) {
+  const now = Date.now();
+  const record = failedAttempts.get(ip) || { count: 0, firstAttempt: now, lockedUntil: null };
+  record.count += 1;
+  if (record.count >= MAX_FAILED_ATTEMPTS) {
+    record.lockedUntil = now + LOCKOUT_DURATION_MS;
+    console.warn(`Brute-force lockout triggered for IP ${ip} (${record.count} failed attempts)`);
+  }
+  failedAttempts.set(ip, record);
+}
+
+function clearFailedAttempts(ip) {
+  failedAttempts.delete(ip);
+}
+
 function extractApiKey(req) {
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -21,17 +58,34 @@ async function verifyApiKey(apikey) {
   }
 }
 
+async function authenticateRequest(req, res) {
+  const ip = getClientIp(req);
+
+  const lockoutError = checkBruteForce(ip);
+  if (lockoutError) {
+    return res.status(429).json({ error: lockoutError });
+  }
+
+  const apikey = extractApiKey(req);
+  if (!apikey) {
+    recordFailedAttempt(ip);
+    return res.status(401).json({ error: 'API key is required (use Authorization: Bearer header or ?apikey= param)' });
+  }
+
+  const keyInfo = await verifyApiKey(apikey);
+  if (!keyInfo) {
+    recordFailedAttempt(ip);
+    return res.status(403).json({ error: 'Invalid API key' });
+  }
+
+  clearFailedAttempts(ip);
+  return { apikey, keyInfo };
+}
+
 function setupRoutes(app) {
   const healthHandler = async (req, res) => {
-    const apikey = extractApiKey(req);
-    if (!apikey) {
-      return res.status(401).json({ error: 'API key is required (use Authorization: Bearer header or ?apikey= param)' });
-    }
-
-    const keyInfo = await verifyApiKey(apikey);
-    if (!keyInfo) {
-      return res.status(403).json({ error: 'Invalid API key' });
-    }
+    const auth = await authenticateRequest(req, res);
+    if (!auth || res.headersSent) return;
 
     let ollamaHealthy = false;
     try {
@@ -50,16 +104,13 @@ function setupRoutes(app) {
   };
 
   const generateHandler = async (req, res) => {
-    const apikey = extractApiKey(req);
-    if (!apikey) {
-      return res.status(401).json({ error: 'API key is required (use Authorization: Bearer header)' });
-    }
+    const auth = await authenticateRequest(req, res);
+    if (!auth || res.headersSent) return;
 
-    const keyInfo = await verifyApiKey(apikey);
-    if (!keyInfo) {
-      return res.status(403).json({ error: 'Invalid API key' });
-    }
+    const { apikey, keyInfo } = auth;
+
     if (keyInfo.active === 0) {
+      recordFailedAttempt(getClientIp(req));
       return res.status(403).json({ error: 'API key is deactivated' });
     }
 
