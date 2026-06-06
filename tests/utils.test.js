@@ -65,22 +65,22 @@ describe('Utils', function () {
       axiosPostStub.restore();
     });
 
-    it('should send notifications to all webhooks', async function () {
-      await db.run('INSERT INTO webhooks (url) VALUES (?)', ['https://hook1.example.com']);
-      await db.run('INSERT INTO webhooks (url) VALUES (?)', ['https://hook2.example.com']);
+    it('should send notifications to key-associated webhooks', async function () {
+      await db.run('INSERT INTO webhooks (url, api_key) VALUES (?, ?)', ['https://hook1.example.com', 'test-key-1']);
+      await db.run('INSERT INTO webhooks (url, api_key) VALUES (?, ?)', ['https://hook2.example.com', 'test-key-2']);
 
-      const payload = { apikey: 'test', prompt: 'hello', model: 'llama3' };
-      utils.sendWebhookNotification(payload);
+      const payload = { prompt: 'hello', model: 'llama3' };
+      await utils.sendWebhookNotification('test-key-1', payload);
 
       await new Promise(r => setTimeout(r, 100));
 
-      expect(axiosPostStub.callCount).to.equal(2);
+      expect(axiosPostStub.callCount).to.equal(1);
       expect(axiosPostStub.firstCall.args[0]).to.equal('https://hook1.example.com');
-      expect(axiosPostStub.secondCall.args[0]).to.equal('https://hook2.example.com');
     });
 
-    it('should not send when no webhooks exist', async function () {
-      utils.sendWebhookNotification({ apikey: 'test' });
+    it('should not send when no webhooks match the key', async function () {
+      await db.run('INSERT INTO webhooks (url, api_key) VALUES (?, ?)', ['https://hook3.example.com', 'other-key']);
+      await utils.sendWebhookNotification('test-key-1', { prompt: 'test' });
 
       await new Promise(r => setTimeout(r, 100));
 
