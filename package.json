@@ -12,7 +12,8 @@
     "lint:fix": "eslint . --ext .js --fix",
     "format": "prettier --write \"**/*.js\" \"!ui/**\"",
     "format:check": "prettier --check \"**/*.js\" \"!ui/**\"",
-    "build:ui": "cd ui && npm run build"
+    "build:ui": "cd ui && npm run build",
+    "ui": "cd ui && npm run dev"
   },
   "dependencies": {
     "axios": "^1.13.5",
