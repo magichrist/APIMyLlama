@@ -280,14 +280,7 @@ function logUsage(apikey, model) {
 }
 
 function sendWebhook(apikey, payload, model) {
-  sendWebhookNotification(apikey, {
-    event: 'api_request',
-    apiKey: apikey,
-    model: model,
-    prompt: payload.prompt,
-    response: payload.response,
-    timestamp: new Date().toISOString()
-  });
+  sendWebhookNotification(apikey, payload.response);
 }
 
 module.exports = { setupRoutes };

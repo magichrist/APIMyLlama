@@ -409,12 +409,11 @@ function getOllamaURL() {
   });
 }
 
-async function sendWebhookNotification(apikey, payload) {
+async function sendWebhookNotification(apikey, responseText) {
   try {
     const rows = await db.all('SELECT * FROM webhooks WHERE api_key = ?', [apikey]);
     for (const row of rows) {
-      const text = Object.entries(payload).map(([k, v]) => `${k}: ${v}`).join('\n');
-      axios.post(row.url, { text }, {
+      axios.post(row.url, { text: responseText }, {
         timeout: 10000,
         headers: { 'Content-Type': 'application/json' },
       })
