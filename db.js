@@ -33,6 +33,7 @@ class Database {
 
     await this.run(`CREATE TABLE IF NOT EXISTS apiUsage (
       key TEXT,
+      model TEXT,
       timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`);
 
@@ -55,6 +56,13 @@ class Database {
     if (!columns.includes('description')) {
       await this.run("ALTER TABLE apiKeys ADD COLUMN description TEXT");
       console.log("Added 'description' column to 'apiKeys' table.");
+    }
+
+    const usageRows = await this.all("PRAGMA table_info(apiUsage)");
+    const usageCols = usageRows.map(r => r.name);
+    if (!usageCols.includes('model')) {
+      await this.run("ALTER TABLE apiUsage ADD COLUMN model TEXT");
+      console.log("Added 'model' column to 'apiUsage' table.");
     }
   }
 

@@ -208,7 +208,7 @@ async function handleGenerate(req, res, apikey) {
       });
 
       ollamaResponse.data.on('end', () => {
-        logUsage(apikey);
+        logUsage(apikey, model);
         sendWebhook(apikey, prompt, model, stream, images, raw);
       });
 
@@ -218,7 +218,7 @@ async function handleGenerate(req, res, apikey) {
         timeout: 300000
       });
 
-      logUsage(apikey);
+      logUsage(apikey, model);
       sendWebhook(apikey, prompt, model, stream, images, raw);
 
       res.json(ollamaResponse.data);
@@ -237,8 +237,8 @@ async function handleGenerate(req, res, apikey) {
   }
 }
 
-function logUsage(apikey) {
-  db.run('INSERT INTO apiUsage (key) VALUES (?)', [apikey])
+function logUsage(apikey, model) {
+  db.run('INSERT INTO apiUsage (key, model) VALUES (?, ?)', [apikey, model || null])
     .catch(err => console.error('Error logging API usage:', err.message));
 }
 

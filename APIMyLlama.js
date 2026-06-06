@@ -2,6 +2,7 @@ const express = require('express');
 const db = require('./db');
 const { startServer, resolveConfig, startCLI, getServer } = require('./utils');
 const { setupRoutes } = require('./api');
+const { setupAdminRoutes } = require('./admin-api');
 
 const app = express();
 
@@ -17,8 +18,8 @@ async function main() {
 
   app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, DELETE');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-admin-token');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     if (req.method === 'OPTIONS') return res.sendStatus(200);
     next();
   });
@@ -26,6 +27,7 @@ async function main() {
   await db.initialize();
 
   setupRoutes(app);
+  setupAdminRoutes(app);
 
   app.use((err, req, res, next) => {
     console.error('Unhandled error:', err);
