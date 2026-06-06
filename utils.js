@@ -413,7 +413,11 @@ async function sendWebhookNotification(apikey, payload) {
   try {
     const rows = await db.all('SELECT * FROM webhooks WHERE api_key = ?', [apikey]);
     for (const row of rows) {
-      axios.post(row.url, payload, { timeout: 10000 })
+      const text = Object.entries(payload).map(([k, v]) => `${k}: ${v}`).join('\n');
+      axios.post(row.url, { text }, {
+        timeout: 10000,
+        headers: { 'Content-Type': 'application/json' },
+      })
         .then(() => db.run('UPDATE webhooks SET last_triggered = ? WHERE id = ?', [new Date().toISOString(), row.id]))
         .catch(err => console.error('Error sending webhook notification:', err.message));
     }

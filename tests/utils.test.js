@@ -76,6 +76,8 @@ describe('Utils', function () {
 
       expect(axiosPostStub.callCount).to.equal(1);
       expect(axiosPostStub.firstCall.args[0]).to.equal('https://hook1.example.com');
+      expect(axiosPostStub.firstCall.args[1]).to.deep.equal({ text: 'prompt: hello\nmodel: llama3' });
+      expect(axiosPostStub.firstCall.args[2].headers['Content-Type']).to.equal('application/json');
     });
 
     it('should not send when no webhooks match the key', async function () {
