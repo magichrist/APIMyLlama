@@ -1,35 +1,86 @@
-# APIMyLlama V2 Documentation
 
-## Overview
-
-[![APIMyLlama Video](https://img.youtube.com/vi/x_MSmGX3Vmc/hqdefault.jpg)](https://www.youtube.com/embed/x_MSmGX3Vmc)
-
-APIMyLlama is a server application that provides an interface to interact with the Ollama API, a powerful AI tool to run LLMs. It allows users to run this alongside Ollama to easily distrubute API keys to create amazing things.
-
-### Support Us
-
-We now have a [Ko-fi](https://ko-fi.com/gimerstudios) open if you would like to help and donate to the project. We love to keep it free and open source when possible and donating helps a lot.
-
-[Donate through Ko-fi](https://ko-fi.com/gimerstudios)
-
-# Installation
-
-## Ollama Setup
-If you already have Ollama setup with the 'ollama serve' command and your desired model. You can skip this. If not i'll show you how to set it up. First install [Ollama](https://ollama.com/download) for your desired operating system. Once installed open a terminal instance and run the command below.
-```bash
-ollama pull llama3
+```
+                    ╔═══════════════════════════════════════════╗
+                    ║                                           ║
+                    ║      █████╗ ██████╗ ██╗███╗   ███╗██╗    ║
+                    ║     ██╔══██╗██╔══██╗██║████╗ ████║██║    ║
+                    ║     ███████║██████╔╝██║██╔████╔██║██║    ║
+                    ║     ██╔══██║██╔═══╝ ██║██║╚██╔╝██║██║    ║
+                    ║     ██║  ██║██║     ██║██║ ╚═╝ ██║██║    ║
+                    ║     ╚═╝  ╚═╝╚═�     ╚═╝╚═╝     ╚═╝╚═╝    ║
+                    ║                                           ║
+                    ║       ⚡ LLM API Gateway ⚡               ║
+                    ║    ～ 鍵をかける、放つ、制御する ～        ║
+                    ║                                           ║
+                    ╚═══════════════════════════════════════════╝
 ```
 
-If done correctly you should now have the Meta's Llama3 LLM installed. You can use any model with the API but for this example we will use this model. Now you are gonna run this command after the install is complete.
-```bash
-ollama serve
+<p align="center">
+  <b>APIキー管理・レート制限・Webhook通知でOllamaをプロのように運用</b><br>
+  <i>Manage, secure, and monitor your Ollama LLM deployments with API keys, rate limits, and webhooks.</i>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Node.js-26.x-339933?style=flat&logo=nodedotjs&logoColor=white" />
+  <img src="https://img.shields.io/badge/Express-5.x-000000?style=flat&logo=express&logoColor=white" />
+  <img src="https://img.shields.io/badge/SQLite-WAL-003B57?style=flat&logo=sqlite&logoColor=white" />
+  <img src="https://img.shields.io/badge/license-MIT-blue" />
+  <img src="https://img.shields.io/badge/status-battle__ready-ff69b4" />
+</p>
+
+---
+
+## 📖 Table of Contents
+
+- [What is APIMyLlama?](#-what-is-apimyllama)
+- [Quickstart](#-quickstart)
+- [Docker](#-docker)
+- [Curl Use Cases](#-curl-use-cases)
+- [Admin Dashboard](#-admin-dashboard)
+- [Webhooks (Slack)](#-webhooks-slack)
+- [CLI Commands](#-cli-commands)
+- [Environment Variables](#-environment-variables)
+- [Security](#-security)
+- [Official Client Libraries](#-official-client-libraries)
+- [FAQ](#-faq)
+
+---
+
+## ⚡ What is APIMyLlama?
+
+**APIMyLlama** is a production-ready API gateway for [Ollama](https://ollama.com). It wraps your local LLM behind a secure REST API with:
+
+- 🔑 **Per-user API keys** (auto-generated or custom)
+- 🚦 **Per-key rate limiting** (token bucket algorithm)
+- 🛡️ **Brute-force protection** (IP-based lockout after 5 failures)
+- 🔔 **Slack webhook notifications** (per-key, with SSRF protection)
+- 📊 **Admin dashboard** (Vue.js UI)
+- 📝 **Usage logging**
+- 🐳 **Docker support**
+
 ```
-Now you have an Ollama server setup. Time for the next step.
+┌──────────┐    ┌──────────────┐    ┌──────────┐
+│  Client   │───▶│ APIMyLlama   │───▶│  Ollama   │
+│ (curl/SDK)│    │  (port 3000) │    │ (11434)   │
+└──────────┘    └──────┬───────┘    └──────────┘
+                       │
+              ┌────────┴────────┐
+              │  SQLite + Slack │
+              │  Webhook        │
+              └─────────────────┘
+```
 
-## Hosting the API
+---
 
+## 🚀 Quickstart
 
-Install [Node.JS](https://nodejs.org/en/download/package-manager) on your server. Then clone the git repository.
+### 1. Prerequisites
+
+- [Ollama](https://ollama.com/download) installed with a model pulled (`ollama pull llama3`)
+- [Node.js](https://nodejs.org) >= 22
+- `ollama serve` running in the background
+
+### 2. Install & Run
 
 ```bash
 git clone https://github.com/Gimer-Studios/APIMyLlama.git
@@ -37,439 +88,368 @@ cd APIMyLlama
 npm install
 node APIMyLlama.js
 ```
-After cloning go into the APIMyLlama directory and install all the needed dependencies by running the 'npm install' command. Then run the APIMyLlama.js file.
-On startup it will ask what port you want to use.
-```
-PS C:\Users\EXAMPLE\Documents\APIMyLlama> node APIMyLlama.js
-APIMyLlama V2 is being started. Thanks for choosing Gimer Studios.
-Connected to the apiKeys.db database.
-Enter the port number for the API server: 3000
-Port number saved to port.conf: 3000
-Enter the URL for the Ollama server (URL that your Ollama server is running on. By default it is "http://localhost:11434" so if you didnt change anything it should be that.): <URL_FOR_OLLAMA_SERVER
-```
-Enter the desired port you would like to use with the APIMyLlama server. This port can NOT be the same as Ollama or any other application running on your server. After you choose your port you will NEED to port foward this port if you are gonna use the API Key system OUTSIDE of your network. Then it will ask you to enter the URL for your Ollama server. This is the URL Ollama is running on. If you are running APIMyLlama on the same system as you are running Ollama on. You will put 'http://localhost:11434' If you changed the port you can put your port instead of '11434'. If you are running Ollama on a different server/device (This also applies to virtualized machines). You will need to get the IP of the device and then put it like this 'http://<YOUR_SERVER_IP>:11434'. If you changed the port then you can put your port here instead of '11434'. This last thing applies to running Ollama and APIMyLlama on 2 different systems. If you are doing this. You will NEED to run Ollama to listen on ALL interfaces. You can do this on Windows or Linux like shown below.
 
-## Let Ollama Listen on all interfaces (Only applies if you are using 2 different systems for the APIMyLlama server and Ollama.)
+On first run you'll be prompted for a **port** and **Ollama URL**. These are saved to `.conf` files for subsequent starts.
 
-Windows:
-For Windows you can set a System Environment Variable. The variable and the value are listed below.
 ```
-Variable: OLLAMA_HOST
-Value: 0.0.0.0
-```
-Linux:
-For Linux you can edit the service file for Ollama. Open /etc/systemd/system/ollama.service and add the following line inside the [Service] section
-```
-Environment="OLLAMA_HOST=0.0.0.0"
-```
-On Linux you can also just run the command below to listen on all interfaces if that is easier for you. However you will need to run Ollama with this command everytime you start it up if you want to use APIMyLlama.
-```
-OLLAMA_HOST=0.0.0.0 ollama serve
+$ node APIMyLlama.js
+
+                    ╔═══════════════════════════════════════════╗
+                    ║           APIMyLlama V2                  ║
+                    ╚═══════════════════════════════════════════╝
+
+  Admin token: a1b2c3d4e5f6...     ← copy this for the dashboard!
+  Set ADMIN_TOKEN env var to persist across restarts.
+
+Server running on port 3000
 ```
 
-## Commands
-These are the commands you can use in the APIMyLlama application
+### 3. Get Your First API Key
 
 ```bash
+# The CLI starts automatically. Type:
 generatekey
+
+# Output:
+# Key generated: 7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6
 ```
-This command will generate a key using Cryptography and save it to the local database.
+
+Or generate one via the admin API:
 
 ```bash
-listkey
-```
-This command will list all API Keys in the database.
-
-```bash
-removekey <API_KEY>
-```
-This command will remove any key from the database.
-
-```bash
-addkey <API_KEY>
-```
-You can add custom keys if wanted. (DO with CAUTION as it may be unsafe)
-
-```bash
-changeport <SERVER_PORT>
-```
-You can change the servers port in realtime without having to restart the application.
-
-```bash
-changeollamaurl <YOUR_OLLAMA_SERVER_URL>
-```
-You can change the Ollama Server url if you have a custom one set. By default it is "http://localhost:11434".
-
-```bash
-addwebhook <YOUR_WEBHOOK>
-```
-You can add webhooks for alerts when a new request is made. EX. Discord Webhook
-
-```bash
-listwebhooks
-```
-This command will list all the webhooks you have attached to your system.
-
-```bash
-deletewebhook <ID_OF_WEBHOOK_IN_DATABASE>
-```
-This command can be used to remove a webhook in your system. You can get the ID of the webhook using the 'listwebhooks' command.
-
-```bash
-ratelimit <API_KEY> <RATE_LIMIT>
-```
-This command allows you to change the ratelimit on a key. By default it is 10. The rate limit is by minute. So for example the default allows 10 requests to the API per minute.
-
-```bash
-deactivatekey <API_KEY>
-```
-Allows you to deactivate an API key. This will make the key useless untill it is activated.
-
-```bash
-activatekey <API_KEY>
-```
-Activates a API key that has been deactivated in the past.
-
-```bash
-addkeydescription <API_KEY>
-```
-This command lets you add a description to a key to help you decipher what key does what.
-
-```bash
-listkeydescription <API_KEY>
-```
-This command lists the description of that key if it has a description.
-
-```bash
-generatekeys <number>
-```
-Quickly generate multiple new API keys.
-
-```bash
-regeneratekey <API_KEY>
-```
-Regenerate any specified API key without affecting other details.
-
-```bash
-activateallkeys
-```
-Activate all your API keys with a single command.
-
-```bash
-deactivateallkeys
-```
-Deactivate all your API keys with a single command.
-
-```bash
-getkeyinfo <API_KEY>
-```
-Retrieve detailed information about a specific API key.
-
-```bash
-listactivekeys
-```
-Easily list all active API keys.
-
-```bash
-listinactivekeys
-```
-Easily list all inactive API keys.
-
-## Working with the API
-Install APIMyLlama packages with NPM (Node.JS), PIP (Python), Jitpack Repo+Gradle or Maven (Java), or from the Crates Repository (Rust)
-
-NPM Install (Node.JS)
-```bash
-  cd PROJECT_NAME
-  npm install apimyllama-node-package
-```
-PIP Install (Python)
-```bash
-  cd PROJECT_NAME
-  pip install apimyllama
-```
-Jitpack+Gradle Repository <build.gradle> (Java IF YOUR USING GRADLE)
-```bash
-	dependencyResolutionManagement {
-		repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-		repositories {
-			mavenCentral()
-			maven { url 'https://www.jitpack.io' }
-		}
-	}
-```
-
-Jitpack+Gradle Dependency <build.gradle> (Java IF YOUR USING GRADLE)
-```bash
-	dependencies {
-	        implementation 'com.github.Gimer-Studios:APIMyLlama-Java-Package:V2.0.5'
-	}
-```
-
-Jitpack+Maven Repository <pom.xml> (Java IF YOUR USING MAVEN)
-```bash
-	<repositories>
-		<repository>
-		    <id>jitpack.io</id>
-		    <url>https://www.jitpack.io</url>
-		</repository>
-	</repositories>
-```
-
-Jitpack+Maven Dependency <pom.xml> (Java IF YOUR USING MAVEN)
-```bash
-	<dependency>
-	    <groupId>com.github.Gimer-Studios</groupId>
-	    <artifactId>APIMyLlama-Java-Package</artifactId>
-	    <version>V2.0.5</version>
-	</dependency>
-```
-Crate Repository <Cargo.toml> (Rust)
-```bash
-    [dependencies]
-    apimyllama = "2.0.7"
-    tokio = { version = "1", features = ["full"] }
-```
-
-# Examples to get response from API
-
-Node.JS example:
-```bash
-const apiMyLlamaNodePackage = require('apimyllama-node-package');
-
-// Intialize Parameters
-const apikey = 'API_KEY';
-const prompt = 'Hello!';
-const model = 'llama3';
-const ip = 'SERVER_IP';
-const port = 'SERVER_PORT';
-const stream = false;
-
-apiMyLlamaNodePackage.generate(apikey, prompt, model, ip, port, stream)
-  .then(response => console.log(response))
-  .catch(error => console.error(error));
-  ```
-
-Python example:
-```bash
-import requests
-from apimyllama import ApiMyLlama
-
-def main():
-    ip = "SERVER_IP"
-    port = "PORT_NUMBER"
-    apikey = "API_KEY" 
-    prompt = "Hello"
-    model = "llama3" 
-    api = ApiMyLlama(ip, port)
-    try:
-        result = api.generate(apikey, prompt, model)
-        print("API Response:", result)
-    except requests.RequestException as e:
-        print("An error occurred:", e)
-
-if __name__ == "__main__":
-    main()
-```
-
-Java Example:
-```bash
-import com.gimerstudios.apimyllama.ApiMyLlama;
-import java.io.IOException;
-
-public class TestAPIMyLlama {
-
-    public static void main(String[] args) {
-        String serverIp = "SERVER_IP";
-        int serverPort = SERVER_PORT;
-        String apiKey = "API_KEY";
-        String prompt = "Hello!";
-        String model = "llama3";
-        boolean stream = false;
-
-        ApiMyLlama apiMyLlama = new ApiMyLlama(serverIp, serverPort);
-
-        try {
-            String response = apiMyLlama.generate(apiKey, prompt, model, stream);
-            System.out.println("Generate Response: " + response);
-        } catch (IOException | InterruptedException e) {
-            e.printStackTrace();
-        }
-    }
-}
-```
-
-Rust Example:
-```bash
-use apimyllama::ApiMyLlama;
-use std::error::Error;
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
-    let server_ip = "127.0.0.1".to_string();
-    let server_port = 3000;  
-    let api_key = "api";
-    let api = ApiMyLlama::new(server_ip, server_port);
-    let prompt = "Hello!";
-    let model = "llama3";
-
-    match api.generate(api_key, prompt, model, false).await {
-        Ok(response) => {
-            println!("Response: {}", response.response);
-            println!("Model: {}", response.model);
-            println!("Created At: {}", response.created_at);
-            println!("Done: {}", response.done);
-            println!("Done Reason: {}", response.done_reason);
-            println!("Context: {:?}", response.context);
-            println!("Total Duration: {}", response.total_duration);
-            println!("Load Duration: {}", response.load_duration);
-            println!("Prompt Eval Duration: {}", response.prompt_eval_duration);
-            println!("Eval Count: {}", response.eval_count);
-            println!("Eval Duration: {}", response.eval_duration);
-        }
-        Err(e) => println!("Text generation failed: {}", e),
-    }
-
-    Ok(())
-}
-```
-
-## Checking API Health
-The packages have built in health checking command (AS OF V2)
-If you already have the Node.js or Python packages installed then you can just copy and paste the code below to test.
-
-Node.JS example:
-```bash
-const apiMyLlamaNodePackage = require('apimyllama-node-package');
-
-// Intialize Parameters
-const apikey = 'API_KEY';
-const ip = 'SERVER_IP';
-const port = 'SERVER_PORT';
-
-
-apiMyLlamaNodePackage.getHealth(apikey, ip, port)
-  .then(response => console.log('Health Check Response:', response))
-  .catch(error => console.error('Error:', error));
-  ```
-
-  Python example:
-```bash
-import requests
-from apimyllama import ApiMyLlama
-
-ip = 'YOUR_SERVER_IP'
-port = 'YOUR_SERVER_PORT'
-apikey = 'YOUR_API_KEY'
-
-api = ApiMyLlama(ip, port)
-
-try:
-    health = api.get_health(apikey)
-    print("Health Check Response:", health)
-except requests.RequestException as error:
-    print("Error:", error)
-```
-
-  Java example:
-```bash
-import com.gimerstudios.apimyllama.ApiMyLlama;
-import java.io.IOException;
-import java.util.Map;
-
-public class TestAPIMyLlama {
-
-    public static void main(String[] args) {
-        String serverIp = "SERVER_IP";
-        int serverPort = SERVER_PORT;
-        String apiKey = "API_KEY";
-
-        ApiMyLlama apiMyLlama = new ApiMyLlama(serverIp, serverPort);
-
-        try {
-            Map<String, Object> healthStatus = apiMyLlama.getHealth(apiKey);
-            System.out.println("Health Status: " + healthStatus);
-        } catch (IOException | InterruptedException e) {
-            e.printStackTrace();
-        }
-    }
-}
-```
-
-Rust Example:
-```bash
-use apimyllama::ApiMyLlama;
-use std::error::Error;
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
-    let server_ip = "127.0.0.1".to_string();
-    let server_port = 3000;  
-    let api_key = "api";
-    let api = ApiMyLlama::new(server_ip, server_port);
-
-    match api.get_health(api_key).await {
-        Ok(response) => {
-            println!("API Health Status: {}", response.status);
-            println!("Timestamp: {}", response.timestamp);
-        }
-        Err(e) => println!("Health check failed: {}", e),
-    }
-
-    Ok(())
-}
-```
-
-## API References
-```
-ApiMyLlama(ip, port)
-ip: IP address of the APIMyLlama server.
-port: Port number on which the APIMyLlama server is running.
-```
-```
-api.generate(apiKey, prompt, model, stream)
-api.get_health(apikey)
-apiKey: API key for accessing the Ollama API.
-prompt: Text prompt to generate a response.
-model: Machine learning model to use for text generation.
-stream: Boolean indicating whether to stream the response.
-```
-## curl Use Case
-```
-curl -X POST http://localhost:<Port>/generate \
-  -H "Authorization: Bearer <APIKey>" \
+curl -X POST http://localhost:3000/v1/admin/keys \
+  -H "x-admin-token: <ADMIN_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{"prompt":"<Message>","model":"<Model>","stream":true}'
+  -d '{"description": "my first key"}'
 ```
-# Support
-If there are any issues please make a Github Issue Report. To get quicker support join our discord server.
--[Discord Server](https://discord.gg/r6XazGtKg7) If there are any feature requests you may request them in the discord server. PLEASE NOTE this project is still in EARLY BETA. 
 
-### Support Us
+### 4. Make Your First LLM Call
 
-We now have a [Ko-fi](https://ko-fi.com/gimerstudios) open if you would like to help and donate to the project. We love to keep it free and open source when possible and donating helps a lot.
+```bash
+curl -X POST http://localhost:3000/generate \
+  -H "Authorization: Bearer <API_KEY>" \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "Hello! Who are you?", "model": "llama3"}'
+```
 
-[Donate through Ko-fi](https://ko-fi.com/gimerstudios)
+---
 
+## 🐳 Docker
 
-## FAQ
+```bash
+# Build
+docker build -t apimyllama .
 
-#### 1. Why am I getting the module not found error?
+# Run (with persistent DB)
+docker run -d \
+  --name apimyllama \
+  -p 3000:3000 \
+  -e OLLAMA_URL=http://host.docker.internal:11434 \
+  -v apimyllama-data:/app/data \
+  apimyllama
+```
 
-You most likely forgot to run the 'npm install' command after cloning the repository.
+*Note: `host.docker.internal` connects to Ollama on the host machine. Adjust the URL for your setup.*
 
-#### 2. Why can't I use the API outside my network?
+---
 
-You probably didn't port foward. And if you did your router may have not intialized the changes yet or applied them.
+## 🔥 Curl Use Cases
 
-#### 3. Ollama Serve command error "Error: listen tcp 127.0.0.1:11434: bind: Only one usage of each socket address (protocol/network address/port) is normally permitted."
+### Basic Text Generation
 
-If you get this error just close the Ollama app through the system tray on Windows. And if your on Linux just use systemctl to stop the Ollama process. Once done you can try running the ollama serve command again.
+```bash
+curl -X POST http://localhost:3000/generate \
+  -H "Authorization: Bearer abc123" \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "Write a haiku about servers", "model": "llama3"}'
+```
 
-#### 4. error: 'Error making request to Ollama API'
+### Streaming Response
 
-If you have a custom port set for your Ollama server this is a simple fix. Just run the 'changeollamaurl <YOUR_OLLAMA_SERVER_URL>' and change it to the url your Ollama server is running on. By default it is "http://localhost:11434" but if you changed it you will need to do this. You can also fix this problem through changing the port in the ollamaURL.conf file.
+```bash
+curl -X POST http://localhost:3000/generate \
+  -H "Authorization: Bearer abc123" \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "Tell me a story", "model": "llama3", "stream": true}'
+```
 
-## Authors
+### Chat with Context (Images)
 
-- [@gimerstudios](https://github.com/Gimer-Studios)
+```bash
+curl -X POST http://localhost:3000/generate \
+  -H "Authorization: Bearer abc123" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "What is in this image?",
+    "model": "llava",
+    "images": ["base64_encoded_image_data"]
+  }'
+```
+
+### Health Check
+
+```bash
+curl -X GET http://localhost:3000/health \
+  -H "Authorization: Bearer abc123"
+```
+
+### Using the v1-compatible Endpoint
+
+```bash
+curl -X POST http://localhost:3000/v1/generate \
+  -H "Authorization: Bearer abc123" \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "Hello", "model": "llama3"}'
+```
+
+### Check Rate Limit Status
+
+```bash
+# Sending requests from a Python script to see rate limits in action
+for i in $(seq 1 15); do
+  curl -s -o /dev/null -w "%{http_code}\n" \
+    -X POST http://localhost:3000/generate \
+    -H "Authorization: Bearer abc123" \
+    -H "Content-Type: application/json" \
+    -d '{"prompt": "Hi", "model": "llama3"}'
+done
+# After the 10th request (default limit), you'll see 429s
+```
+
+### Create an API Key (Admin)
+
+```bash
+curl -X POST http://localhost:3000/v1/admin/keys \
+  -H "x-admin-token: <ADMIN_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"description": "production-key-1"}'
+```
+
+### List All Keys (Admin)
+
+```bash
+curl http://localhost:3000/v1/admin/keys \
+  -H "x-admin-token: <ADMIN_TOKEN>"
+```
+
+### Deactivate / Reactivate a Key
+
+```bash
+# Deactivate
+curl -X PUT http://localhost:3000/v1/admin/keys/<KEY>/deactivate \
+  -H "x-admin-token: <ADMIN_TOKEN>"
+
+# Reactivate
+curl -X PUT http://localhost:3000/v1/admin/keys/<KEY>/activate \
+  -H "x-admin-token: <ADMIN_TOKEN>"
+```
+
+### Set Rate Limit on a Key
+
+```bash
+curl -X PUT http://localhost:3000/v1/admin/keys/<KEY>/rate-limit \
+  -H "x-admin-token: <ADMIN_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"limit": 50}'
+```
+
+### Regenerate a Key (without losing config)
+
+```bash
+curl -X POST http://localhost:3000/v1/admin/keys/<KEY>/regenerate \
+  -H "x-admin-token: <ADMIN_TOKEN>"
+```
+
+### View Usage Activity
+
+```bash
+curl http://localhost:3000/v1/admin/activity \
+  -H "x-admin-token: <ADMIN_TOKEN>"
+```
+
+### Add a Slack Webhook
+
+```bash
+curl -X POST http://localhost:3000/v1/admin/webhooks \
+  -H "x-admin-token: <ADMIN_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://hooks.slack.com/services/T00/B00/xxxxx", "apiKey": "<API_KEY>"}'
+```
+
+---
+
+## 🎛️ Admin Dashboard
+
+APIMyLlama ships with a built-in Vue.js admin UI served directly by Express.
+
+```
+http://localhost:3000/
+```
+
+| Page | Description |
+|------|-------------|
+| **Dashboard** | Real-time stats: total keys, active keys, requests served, model usage |
+| **API Keys** | CRUD for keys, rate limit sliders, activate/deactivate, regenerate |
+| **Settings** | Webhook management with per-key association |
+
+On first load, you'll be prompted for the **admin token** (printed in the server console or set via `ADMIN_TOKEN` env var).
+
+---
+
+## 🔔 Webhooks (Slack)
+
+Webhooks fire when an LLM request using the associated API key completes successfully. The payload sent to Slack is the **model's raw response text**.
+
+### Setup
+
+1. Create a Slack webhook URL in your Slack workspace:
+   - Go to `https://api.slack.com/apps` → Create an app → Incoming Webhooks
+   - Copy the webhook URL
+
+2. Add it to APIMyLlama:
+
+```bash
+curl -X POST http://localhost:3000/v1/admin/webhooks \
+  -H "x-admin-token: <ADMIN_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://hooks.slack.com/services/...", "apiKey": "<API_KEY>"}'
+```
+
+3. Every time that API key is used, Slack receives:
+```
+Hello! I am Llama 3, an AI assistant created by Meta...
+```
+
+### Security
+
+- ✅ **Per-key scoping**: only webhooks matching the request's API key fire
+- ✅ **SSRF protection**: private/internal IPs blocked via DNS resolution + IP range checking
+- ✅ **No redirect following**: `maxRedirects: 0` prevents SSRF redirect attacks
+- ✅ **URL validation**: protocol, format, and credential check
+
+---
+
+## 🖥️ CLI Commands
+
+The built-in CLI starts automatically with the server.
+
+| Command | Description |
+|---------|-------------|
+| `generatekey` | Generate a new API key (cryptographically random) |
+| `listkey` | List all API keys |
+| `removekey <key>` | Delete an API key |
+| `addkey <key>` | Add a custom key (use with caution) |
+| `changeport <port>` | Change server port (no restart needed) |
+| `changeollamaurl <url>` | Change the Ollama server URL |
+| `addwebhook <url>` | Add a webhook URL |
+| `listwebhooks` | List all webhooks |
+| `deletewebhook <id>` | Delete a webhook by ID |
+| `ratelimit <key> <limit>` | Set rate limit for a key (req/min) |
+| `deactivatekey <key>` | Deactivate an API key |
+| `activatekey <key>` | Reactivate an API key |
+| `addkeydescription <key>` | Add a description to a key |
+| `listkeydescription <key>` | View a key's description |
+| `generatekeys <n>` | Bulk-generate N keys |
+| `regeneratekey <key>` | Re-roll a key (preserves config) |
+| `activateallkeys` | Activate every key |
+| `deactivateallkeys` | Deactivate every key |
+| `getkeyinfo <key>` | Detailed key information |
+| `listactivekeys` | List only active keys |
+| `listinactivekeys` | List only inactive/deactivated keys |
+
+---
+
+## 🌐 Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `3000` | Server port |
+| `OLLAMA_URL` | `http://localhost:11434` | Ollama server URL |
+| `ADMIN_TOKEN` | *(auto-generated)* | Admin API auth token. If unset, a random 64-hex-char token is generated each startup |
+| `API_KEYS_DB_PATH` | `./apiKeys.db` | SQLite database path |
+| `NODE_ENV` | — | `production` enables static UI serving, `combined` morgan logs |
+| `VITE_ADMIN_TOKEN` | — | *(deprecated)* Removed for security — use the login page instead |
+
+---
+
+## 🛡️ Security
+
+| Feature | Status | Details |
+|---------|--------|---------|
+| 🔑 API key auth | ✅ | Bearer token in `Authorization` header |
+| 🚦 Rate limiting | ✅ | Token bucket per key, batch DB writes (3s flush) |
+| 🛡️ Brute-force lockout | ✅ | IP-based, 5 failed attempts, 15min lockout |
+| 🔒 Admin token | ✅ | Auto-generated 32-byte random hex, `timingSafeEqual` comparison |
+| 🚫 SSRF protection | ✅ | DNS resolution + private IP range checks + no redirects |
+| 🔐 Parameterized SQL | ✅ | All queries use `?` placeholders — no SQL injection |
+| 📝 Error leakage | ⚠️ | Some `err.message` returned to admin API callers |
+| 🌐 CORS | ⚠️ | Wildcard origin (acceptable for API proxy use case) |
+| 🪖 Security headers | ⚠️ | Helmet not yet enabled |
+
+---
+
+## 📦 Official Client Libraries
+
+| Language | Package | Install |
+|----------|---------|---------|
+| **Node.js** | [`apimyllama-node-package`](https://npmjs.com/package/apimyllama-node-package) | `npm install apimyllama-node-package` |
+| **Python** | [`apimyllama`](https://pypi.org/project/apimyllama/) | `pip install apimyllama` |
+| **Java** | `com.github.Gimer-Studios:APIMyLlama-Java-Package:V2.0.5` | Jitpack |
+| **Rust** | [`apimyllama`](https://crates.io/crates/apimyllama) | `cargo add apimyllama` |
+
+### Node.js Example
+
+```javascript
+const apiMyLlama = require('apimyllama-node-package');
+
+apiMyLlama.generate('API_KEY', 'Hello!', 'llama3', '127.0.0.1', 3000, false)
+  .then(res => console.log(res))
+  .catch(err => console.error(err));
+```
+
+### Python Example
+
+```python
+from apimyllama import ApiMyLlama
+
+api = ApiMyLlama('127.0.0.1', 3000)
+result = api.generate('API_KEY', 'Hello!', 'llama3')
+print(result)
+```
+
+---
+
+## ❓ FAQ
+
+**Q: Module not found error?**  
+A: Run `npm install` before starting.
+
+**Q: Can't connect from outside my network?**  
+A: Port-forward port 3000 (or your configured port). APIMyLlama does not handle TLS — put it behind nginx/Caddy for HTTPS.
+
+**Q: `Error: listen tcp 127.0.0.1:11434: bind: Only one usage...`**  
+A: Close the Ollama system tray app (Windows) or `systemctl stop ollama` (Linux), then `ollama serve`.
+
+**Q: `Error making request to Ollama API`**  
+A: Verify `ollama serve` is running and the URL in `ollamaURL.conf` is correct. Use `changeollamaurl` to update it.
+
+**Q: Webhook not firing?**  
+A: Check the server console logs for `sendWebhookNotification` messages. The webhook must be created with the **same API key** used in the request.
+
+**Q: Admin token keeps changing?**  
+A: Set the `ADMIN_TOKEN` env var to a fixed value. Without it, a random token is generated on every startup.
+
+---
+
+## 💖 Support
+
+- [Ko-fi](https://ko-fi.com/gimerstudios) — buy us a coffee ☕
+- [Discord](https://discord.gg/r6XazGtKg7) — get help, request features
+- [GitHub Issues](https://github.com/Gimer-Studios/APIMyLlama/issues) — bug reports
+
+---
+
+<p align="center">
+  <sub>Made with ⚡ by <a href="https://github.com/Gimer-Studios">Gimer Studios</a></sub><br>
+  <sub>鍵をかける、放つ、制御する — Secure, unleash, control.</sub>
+</p>
