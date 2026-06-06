@@ -1,6 +1,8 @@
 const fs = require('fs');
 const readline = require('readline');
 const crypto = require('crypto');
+const net = require('net');
+const dns = require('dns/promises');
 const axios = require('axios');
 const db = require('./db');
 
@@ -11,18 +13,52 @@ let expressApp;
 const VALID_URL_PATTERN = /^https?:\/\/[^\s$.?#].[^\s]*$/i;
 
 const BLOCKED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', '::1'];
-const PRIVATE_IP_PATTERNS = [
-  /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/,
-  /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/,
-  /^172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}$/,
-  /^192\.168\.\d{1,3}\.\d{1,3}$/,
-];
 
-function isBlockedURL(urlStr) {
+function isPrivateIPv4(ip) {
+  const parts = ip.split('.').map(Number);
+  if (parts.length !== 4 || parts.some(isNaN)) return false;
+  if (parts[0] === 127) return true;
+  if (parts[0] === 10) return true;
+  if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
+  if (parts[0] === 192 && parts[1] === 168) return true;
+  if (parts[0] === 169 && parts[1] === 254) return true;
+  if (parts[0] === 0) return true;
+  return false;
+}
+
+function isPrivateIPv6(ip) {
+  const normalized = ip.toLowerCase();
+  if (normalized === '::1' || normalized === '0:0:0:0:0:0:0:1') return true;
+  if (normalized === '::' || normalized === '0:0:0:0:0:0:0:0') return true;
+  if (normalized.startsWith('::ffff:')) {
+    const v4 = normalized.split(':').pop();
+    return isPrivateIPv4(v4);
+  }
+  if (normalized.startsWith('fc') || normalized.startsWith('fd')) return true;
+  if (normalized.startsWith('fe80')) return true;
+  return false;
+}
+
+async function isBlockedURL(urlStr) {
   try {
-    const host = new URL(urlStr).hostname;
+    const parsed = new URL(urlStr);
+    if (parsed.password) return true;
+    const host = parsed.hostname;
     if (BLOCKED_HOSTS.includes(host)) return true;
-    return PRIVATE_IP_PATTERNS.some(p => p.test(host));
+    if (net.isIP(host)) {
+      if (net.isIPv4(host)) return isPrivateIPv4(host);
+      if (net.isIPv6(host)) return isPrivateIPv6(host);
+      return true;
+    }
+    try {
+      const v4 = await dns.resolve4(host);
+      if (v4.some(ip => isPrivateIPv4(ip))) return true;
+    } catch {}
+    try {
+      const v6 = await dns.resolve6(host);
+      if (v6.some(ip => isPrivateIPv6(ip))) return true;
+    } catch {}
+    return false;
   } catch {
     return true;
   }
@@ -256,7 +292,7 @@ async function changeOllamaURL(newURL) {
     console.log('Invalid Ollama URL. Must be a valid http/https URL.');
     return;
   }
-  if (isBlockedURL(newURL)) {
+  if (await isBlockedURL(newURL)) {
     console.log('URL is not allowed (private/internal network addresses are blocked)');
     return;
   }
@@ -283,7 +319,7 @@ async function addWebhook(url) {
     console.log('Invalid webhook URL. Must be a valid http/https URL.');
     return;
   }
-  if (isBlockedURL(url)) {
+  if (await isBlockedURL(url)) {
     console.log('URL is not allowed (private/internal network addresses are blocked)');
     return;
   }
@@ -415,6 +451,7 @@ async function sendWebhookNotification(apikey, responseText) {
     for (const row of rows) {
       axios.post(row.url, { text: responseText }, {
         timeout: 10000,
+        maxRedirects: 0,
         headers: { 'Content-Type': 'application/json' },
       })
         .then(() => db.run('UPDATE webhooks SET last_triggered = ? WHERE id = ?', [new Date().toISOString(), row.id]))

@@ -5,7 +5,7 @@ const path = require('path');
 const db = require('./db');
 const { startServer, resolveConfig, startCLI, getServer } = require('./utils');
 const { setupRoutes } = require('./api');
-const { setupAdminRoutes } = require('./admin-api');
+const { setupAdminRoutes, ADMIN_TOKEN } = require('./admin-api');
 
 const app = express();
 const isProduction = process.env.NODE_ENV === 'production';
@@ -33,6 +33,8 @@ async function main() {
 
   setupRoutes(app);
   setupAdminRoutes(app);
+  console.log(`\n  Admin token: ${ADMIN_TOKEN}`);
+  console.log('  Set ADMIN_TOKEN env var to persist across restarts.\n');
 
   if (isProduction) {
     app.get('*', (req, res) => {

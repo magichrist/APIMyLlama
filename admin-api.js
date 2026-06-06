@@ -4,7 +4,10 @@ const axios = require('axios');
 const db = require('./db');
 const { isBlockedURL, VALID_URL_PATTERN } = require('./utils');
 
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'admin';
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN || crypto.randomBytes(32).toString('hex');
+if (!process.env.ADMIN_TOKEN) {
+  console.log('ADMIN_TOKEN env not set — generated random token (valid until restart)');
+}
 const SERVER_START = new Date().toISOString();
 
 let configCache = { port: 3000, ollamaUrl: 'http://localhost:11434' };
@@ -21,8 +24,15 @@ function refreshConfigCache() {
 }
 
 function authenticateAdmin(req, res, next) {
-  const token = req.headers['x-admin-token'] || req.query?.adminToken;
-  if (token !== ADMIN_TOKEN) {
+  const token = req.headers['x-admin-token'];
+  if (!token) {
+    return res.status(401).json({ error: 'Admin token required via x-admin-token header' });
+  }
+  try {
+    if (!crypto.timingSafeEqual(Buffer.from(token), Buffer.from(ADMIN_TOKEN))) {
+      return res.status(401).json({ error: 'Invalid admin token' });
+    }
+  } catch {
     return res.status(401).json({ error: 'Invalid admin token' });
   }
   next();
@@ -255,7 +265,7 @@ function setupAdminRoutes(app) {
       if (!VALID_URL_PATTERN.test(url)) {
         return res.status(400).json({ error: 'Invalid webhook URL. Must be a valid http/https URL.' });
       }
-      if (isBlockedURL(url)) {
+      if (await isBlockedURL(url)) {
         return res.status(400).json({ error: 'URL is not allowed (private/internal network addresses are blocked)' });
       }
       const keyExists = await db.get('SELECT key FROM apiKeys WHERE key = ?', [apiKey]);
@@ -307,4 +317,4 @@ async function getOllamaURL() {
   });
 }
 
-module.exports = { setupAdminRoutes };
+module.exports = { setupAdminRoutes, ADMIN_TOKEN };

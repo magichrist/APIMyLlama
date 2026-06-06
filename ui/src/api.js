@@ -1,12 +1,26 @@
-const ADMIN_TOKEN = import.meta.env.VITE_ADMIN_TOKEN || 'admin'
+let _token = null
+
+export function setToken(token) {
+  _token = token
+}
+
+export function getToken() {
+  return _token
+}
+
+function headers() {
+  if (!_token) {
+    throw new Error('Not authenticated. Please set your admin token.')
+  }
+  return {
+    'Content-Type': 'application/json',
+    'x-admin-token': _token,
+  }
+}
 
 async function request(path, options = {}) {
   const res = await fetch(path, {
-    headers: {
-      'Content-Type': 'application/json',
-      'x-admin-token': ADMIN_TOKEN,
-      ...options.headers
-    },
+    headers: { ...headers(), ...options.headers },
     ...options
   })
   if (!res.ok) {
