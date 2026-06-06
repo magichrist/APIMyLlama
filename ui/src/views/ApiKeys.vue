@@ -49,6 +49,7 @@
               <th class="text-left px-5 py-3.5 font-medium">Key</th>
               <th class="text-left px-5 py-3.5 font-medium">Description</th>
               <th class="text-left px-5 py-3.5 font-medium">Status</th>
+              <th class="text-left px-5 py-3.5 font-medium">Webhooks</th>
               <th class="text-left px-5 py-3.5 font-medium">Rate Limit</th>
               <th class="text-left px-5 py-3.5 font-medium">Created</th>
               <th class="text-right px-5 py-3.5 font-medium">Actions</th>
@@ -77,6 +78,11 @@
                   'text-xs font-medium px-2.5 py-1 rounded-full',
                   key.active ? 'text-emerald-400 bg-emerald-400/10' : 'text-gray-500 bg-gray-800'
                 ]">{{ key.active ? 'Active' : 'Inactive' }}</span>
+              </td>
+              <td class="px-5 py-4">
+                <router-link to="/settings" class="text-sm text-indigo-400 hover:text-indigo-300 transition-colors">
+                  {{ (webhookCounts[key.key] || 0) }} webhook{{ (webhookCounts[key.key] || 0) !== 1 ? 's' : '' }}
+                </router-link>
               </td>
               <td class="px-5 py-4">
                 <span class="text-sm text-gray-300">{{ key.rate_limit }}/min</span>
@@ -260,6 +266,7 @@ const openDropdownKey = ref(null)
 const searchQuery = ref('')
 const activeFilter = ref('All')
 const statusFilters = ['All', 'Active', 'Inactive']
+const webhookCounts = ref({})
 
 const showCreateModal = ref(false)
 const showDeleteConfirm = ref(false)
@@ -307,9 +314,23 @@ function formatDate(dateStr) {
   return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
+async function loadWebhookCounts() {
+  try {
+    const all = await api.getWebhooks()
+    const counts = {}
+    for (const wh of all) {
+      if (wh.api_key) {
+        counts[wh.api_key] = (counts[wh.api_key] || 0) + 1
+      }
+    }
+    webhookCounts.value = counts
+  } catch {}
+}
+
 async function loadKeys() {
   try {
     keys.value = await api.getKeys()
+    await loadWebhookCounts()
   } catch (e) {
     toast?.error('Load failed', e.message || 'Could not load API keys')
     console.error('Failed to load keys:', e)

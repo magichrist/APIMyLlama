@@ -19,7 +19,6 @@
       </div>
 
       <template v-else>
-        <!-- Server Tab -->
         <div v-if="activeTab === 'server'" class="max-w-2xl">
           <div class="bg-gray-900 border border-gray-800 rounded-xl p-5">
             <h2 class="text-sm font-semibold text-white mb-4">Server Configuration</h2>
@@ -43,17 +42,25 @@
           </div>
         </div>
 
-        <!-- Webhooks Tab -->
         <div v-if="activeTab === 'webhooks'" class="max-w-2xl">
           <div class="bg-gray-900 border border-gray-800 rounded-xl p-5">
             <h2 class="text-sm font-semibold text-white mb-4">Webhook Endpoints</h2>
-            <p class="text-xs text-gray-500 mb-4">Webhooks are called when API requests are made to the proxy.</p>
-            <div class="flex gap-2 mb-4">
-              <input v-model="newWebhookUrl" type="url" placeholder="https://example.com/webhook"
-                class="flex-1 bg-gray-800 text-gray-200 text-sm rounded-lg px-4 py-2.5 border border-gray-700 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20"
-                @keyup.enter="handleAddWebhook" />
-              <button @click="handleAddWebhook" :disabled="addingWebhook"
-                class="px-4 py-2.5 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors whitespace-nowrap flex items-center gap-2">
+            <p class="text-xs text-gray-500 mb-4">Each webhook is associated with a specific API key and fires when requests use that key.</p>
+            <div class="flex flex-col sm:flex-row gap-2 mb-4">
+              <div class="flex-1 min-w-0">
+                <input v-model="newWebhookUrl" type="url" placeholder="https://example.com/webhook"
+                  class="w-full bg-gray-800 text-gray-200 text-sm rounded-lg px-4 py-2.5 border border-gray-700 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20 mb-2"
+                  @keyup.enter="handleAddWebhook" />
+                <select v-model="newWebhookKey"
+                  class="w-full bg-gray-800 text-gray-200 text-sm rounded-lg px-4 py-2.5 border border-gray-700 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20">
+                  <option value="" disabled>Select an API key...</option>
+                  <option v-for="k in keys" :key="k.key" :value="k.key">
+                    {{ k.description || k.key.substring(0, 16) + '...' }}
+                  </option>
+                </select>
+              </div>
+              <button @click="handleAddWebhook" :disabled="addingWebhook || !newWebhookKey"
+                class="shrink-0 px-4 py-2.5 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2 self-start">
                 <Icon v-if="!addingWebhook" name="plus" class="w-4 h-4" />
                 <div v-else class="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white"></div>
                 {{ addingWebhook ? 'Adding...' : 'Add Webhook' }}
@@ -70,7 +77,14 @@
                   <div class="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center shrink-0">
                     <Icon name="webhook" class="w-4 h-4 text-indigo-400" />
                   </div>
-                  <code class="text-xs text-gray-300 font-mono truncate">{{ wh.url }}</code>
+                  <div class="min-w-0 flex-1">
+                    <code class="text-xs text-gray-300 font-mono truncate block">{{ wh.url }}</code>
+                    <span class="text-xs text-gray-500 mt-0.5 block">
+                      Key: {{ keyLabel(wh.api_key) }}
+                      <span v-if="wh.last_triggered" class="ml-2">· Last fired: {{ timeAgo(wh.last_triggered) }}</span>
+                      <span v-else class="ml-2">· Never fired</span>
+                    </span>
+                  </div>
                 </div>
                 <button @click="confirmDeleteWebhook(wh)"
                   class="ml-2 text-xs text-red-400 hover:text-red-300 hover:bg-red-400/10 px-2 py-1 rounded transition-colors opacity-0 group-hover:opacity-100">
@@ -97,7 +111,6 @@
           </div>
         </div>
 
-        <!-- Admin Tab -->
         <div v-if="activeTab === 'admin'" class="max-w-2xl">
           <div class="bg-gray-900 border border-gray-800 rounded-xl p-5">
             <div class="flex items-center gap-3 mb-3">
@@ -115,7 +128,7 @@
                 <Icon name="copy" class="w-4 h-4" />
               </button>
             </div>
-            <p class="text-xs text-gray-600 mt-2">Set <code class="text-gray-500 bg-gray-800 px-1 rounded">ADMIN_TOKEN</code> env var to change.</p>
+            <p class="text-xs text-gray-600 mt-2">Set <code class="text-gray-500 bg-gray-800 px-1 rounded">ADMIN_TOKEN</code> env var to change. Set <code class="text-gray-500 bg-gray-800 px-1 rounded">VITE_ADMIN_TOKEN</code> in the UI.</p>
           </div>
         </div>
       </template>
@@ -138,36 +151,56 @@ const tabs = [
   { id: 'admin', label: 'Admin', icon: 'shield' },
 ]
 const config = ref({ port: 3000, ollamaUrl: 'http://localhost:11434' })
+const keys = ref([])
 const webhooks = ref([])
 const newWebhookUrl = ref('')
+const newWebhookKey = ref('')
 const addingWebhook = ref(false)
 const showDeleteWebhookConfirm = ref(false)
 const toDeleteWebhook = ref(null)
 const deletingWebhook = ref(false)
 
+function keyLabel(apiKey) {
+  if (!apiKey) return ''
+  const found = keys.value.find(k => k.key === apiKey)
+  return found?.description || apiKey.substring(0, 8) + '...'
+}
+
+function timeAgo(ts) {
+  if (!ts) return ''
+  const secs = Math.floor((Date.now() - new Date(ts + 'Z').getTime()) / 1000)
+  if (secs < 5) return 'just now'
+  if (secs < 60) return secs + 's ago'
+  if (secs < 3600) return Math.floor(secs / 60) + 'm ago'
+  if (secs < 86400) return Math.floor(secs / 3600) + 'h ago'
+  return Math.floor(secs / 86400) + 'd ago'
+}
+
 async function loadSettings() {
   try {
-    const [configData, webhookData] = await Promise.all([
+    const [configData, webhookData, keysData] = await Promise.all([
       api.getConfig(),
-      api.getWebhooks()
+      api.getWebhooks(),
+      api.getKeys()
     ])
     config.value = configData
     webhooks.value = webhookData
+    keys.value = keysData
   } catch (e) {
     toast?.error('Load failed', e.message || 'Could not load settings')
-    console.error('Failed to load settings:', e)
   } finally {
     loading.value = false
   }
 }
 
 async function handleAddWebhook() {
-  if (!newWebhookUrl.value) return
+  if (!newWebhookUrl.value || !newWebhookKey.value) return
   addingWebhook.value = true
   try {
-    await api.addWebhook(newWebhookUrl.value)
-    toast?.success('Webhook added', newWebhookUrl.value)
+    await api.addWebhook(newWebhookUrl.value, newWebhookKey.value)
+    toast?.success('Webhook added', `for ${newWebhookKey.value.substring(0, 8)}...`)
     newWebhookUrl.value = ''
+    newWebhookKey.value = ''
     webhooks.value = await api.getWebhooks()
   } catch (e) {
     toast?.error('Failed to add webhook', e.message)

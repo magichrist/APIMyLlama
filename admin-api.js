@@ -2,9 +2,23 @@ const crypto = require('crypto');
 const fs = require('fs');
 const axios = require('axios');
 const db = require('./db');
+const { isBlockedURL, VALID_URL_PATTERN } = require('./utils');
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'admin';
 const SERVER_START = new Date().toISOString();
+
+let configCache = { port: 3000, ollamaUrl: 'http://localhost:11434' };
+
+function refreshConfigCache() {
+  try {
+    const portData = fs.readFileSync('port.conf', 'utf8').trim();
+    if (portData) configCache.port = parseInt(portData);
+  } catch {}
+  try {
+    const urlData = fs.readFileSync('ollamaURL.conf', 'utf8').trim();
+    if (urlData) configCache.ollamaUrl = urlData;
+  } catch {}
+}
 
 function authenticateAdmin(req, res, next) {
   const token = req.headers['x-admin-token'] || req.query?.adminToken;
@@ -220,7 +234,13 @@ function setupAdminRoutes(app) {
 
   app.get('/v1/admin/webhooks', async (req, res) => {
     try {
-      const rows = await db.all('SELECT * FROM webhooks');
+      const { key } = req.query;
+      let rows;
+      if (key) {
+        rows = await db.all('SELECT * FROM webhooks WHERE api_key = ?', [key]);
+      } else {
+        rows = await db.all('SELECT * FROM webhooks');
+      }
       res.json(rows);
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -229,9 +249,18 @@ function setupAdminRoutes(app) {
 
   app.post('/v1/admin/webhooks', async (req, res) => {
     try {
-      const { url } = req.body;
+      const { url, apiKey } = req.body;
       if (!url) return res.status(400).json({ error: 'Webhook URL is required' });
-      await db.run('INSERT INTO webhooks (url) VALUES (?)', [url]);
+      if (!apiKey) return res.status(400).json({ error: 'apiKey is required — webhooks must be associated with an API key' });
+      if (!VALID_URL_PATTERN.test(url)) {
+        return res.status(400).json({ error: 'Invalid webhook URL. Must be a valid http/https URL.' });
+      }
+      if (isBlockedURL(url)) {
+        return res.status(400).json({ error: 'URL is not allowed (private/internal network addresses are blocked)' });
+      }
+      const keyExists = await db.get('SELECT key FROM apiKeys WHERE key = ?', [apiKey]);
+      if (!keyExists) return res.status(400).json({ error: 'API key not found' });
+      await db.run('INSERT INTO webhooks (url, api_key) VALUES (?, ?)', [url, apiKey]);
       const rows = await db.all('SELECT * FROM webhooks ORDER BY id DESC LIMIT 1');
       res.status(201).json(rows[0]);
     } catch (err) {
@@ -251,19 +280,14 @@ function setupAdminRoutes(app) {
 
   app.get('/v1/admin/config', async (req, res) => {
     try {
-      let port = '3000';
-      let ollamaUrl = 'http://localhost:11434';
-      try {
-        port = fs.readFileSync('port.conf', 'utf8').trim() || port;
-      } catch {}
-      try {
-        ollamaUrl = fs.readFileSync('ollamaURL.conf', 'utf8').trim() || ollamaUrl;
-      } catch {}
-      res.json({ port: parseInt(port), ollamaUrl, serverStart: SERVER_START });
+      refreshConfigCache();
+      res.json({ ...configCache, serverStart: SERVER_START });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
   });
+
+  refreshConfigCache();
 }
 
 async function getOllamaURL() {

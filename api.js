@@ -3,11 +3,15 @@ const db = require('./db');
 const { getOllamaURL, sendWebhookNotification } = require('./utils');
 
 const rateLimits = new Map();
+let rateLimitBatchTimer = null;
+const rateLimitBatchQueue = new Map();
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000;
 
 const failedAttempts = new Map();
+
+const healthCache = { data: null, ttl: 0 };
 
 function getClientIp(req) {
   return req.ip || req.socket?.remoteAddress || 'unknown';
@@ -49,6 +53,24 @@ function extractApiKey(req) {
   return req.body?.apikey || req.query?.apikey || null;
 }
 
+function flushRateLimitBatch() {
+  for (const [apikey, info] of rateLimitBatchQueue) {
+    db.run('UPDATE apiKeys SET tokens = ?, last_used = ? WHERE key = ?', [
+      info.tokens,
+      new Date(info.lastUsed).toISOString(),
+      apikey
+    ]).catch(err => console.error('Error flushing rate limit batch:', err.message));
+  }
+  rateLimitBatchQueue.clear();
+  rateLimitBatchTimer = null;
+}
+
+function scheduleRateLimitFlush() {
+  if (!rateLimitBatchTimer) {
+    rateLimitBatchTimer = setTimeout(flushRateLimitBatch, 3000);
+  }
+}
+
 async function verifyApiKey(apikey) {
   if (!apikey) return null;
   try {
@@ -88,6 +110,10 @@ function setupRoutes(app) {
     const auth = await authenticateRequest(req, res);
     if (!auth || res.headersSent) return;
 
+    if (healthCache.data && Date.now() < healthCache.ttl) {
+      return res.json(healthCache.data);
+    }
+
     let ollamaHealthy = false;
     try {
       const url = await getOllamaURL();
@@ -97,11 +123,14 @@ function setupRoutes(app) {
       ollamaHealthy = false;
     }
 
-    res.json({
+    healthCache.data = {
       status: ollamaHealthy ? 'healthy' : 'degraded',
       ollama: ollamaHealthy ? 'reachable' : 'unreachable',
       timestamp: new Date().toISOString()
-    });
+    };
+    healthCache.ttl = Date.now() + 10000;
+
+    res.json(healthCache.data);
   };
 
   const generateHandler = async (req, res) => {
@@ -156,15 +185,11 @@ async function checkRateLimit(apikey, keyInfo) {
   rateLimitInfo.tokens -= 1;
   rateLimitInfo.lastUsed = currentTime;
 
-  try {
-    await db.run('UPDATE apiKeys SET tokens = ?, last_used = ? WHERE key = ?', [
-      rateLimitInfo.tokens,
-      new Date(rateLimitInfo.lastUsed).toISOString(),
-      apikey
-    ]);
-  } catch (err) {
-    console.error('Error updating tokens:', err.message);
-  }
+  rateLimitBatchQueue.set(apikey, {
+    tokens: rateLimitInfo.tokens,
+    lastUsed: rateLimitInfo.lastUsed
+  });
+  scheduleRateLimitFlush();
 
   return null;
 }
@@ -191,6 +216,12 @@ async function handleGenerate(req, res, apikey) {
 
       res.setHeader('Content-Type', 'application/x-ndjson');
 
+      let streamBody = '';
+
+      ollamaResponse.data.on('data', (chunk) => {
+        streamBody += chunk.toString();
+      });
+
       ollamaResponse.data.on('error', (err) => {
         console.error('Ollama stream error:', err.message);
         if (!res.headersSent) {
@@ -198,8 +229,7 @@ async function handleGenerate(req, res, apikey) {
         } else {
           res.end();
         }
-        logUsage(apikey);
-        sendWebhook(apikey, prompt, model, stream, images, raw);
+        logUsage(apikey, model);
       });
 
       res.on('close', () => {
@@ -209,7 +239,14 @@ async function handleGenerate(req, res, apikey) {
 
       ollamaResponse.data.on('end', () => {
         logUsage(apikey, model);
-        sendWebhook(apikey, prompt, model, stream, images, raw);
+        const lines = streamBody.trim().split('\n').filter(Boolean);
+        const lastLine = lines[lines.length - 1];
+        let responseText = '';
+        try {
+          const parts = lines.map(l => JSON.parse(l));
+          responseText = parts.map(p => p.response).join('');
+        } catch {}
+        sendWebhook(apikey, { prompt, model, response: responseText }, model);
       });
 
       ollamaResponse.data.pipe(res);
@@ -219,7 +256,7 @@ async function handleGenerate(req, res, apikey) {
       });
 
       logUsage(apikey, model);
-      sendWebhook(apikey, prompt, model, stream, images, raw);
+      sendWebhook(apikey, { prompt, model, response: ollamaResponse.data.response }, model);
 
       res.json(ollamaResponse.data);
     }
@@ -242,9 +279,13 @@ function logUsage(apikey, model) {
     .catch(err => console.error('Error logging API usage:', err.message));
 }
 
-function sendWebhook(apikey, prompt, model, stream, images, raw) {
-  sendWebhookNotification({
-    apikey, prompt, model, stream, images, raw,
+function sendWebhook(apikey, payload, model) {
+  sendWebhookNotification(apikey, {
+    event: 'api_request',
+    apiKey: apikey,
+    model: model,
+    prompt: payload.prompt,
+    response: payload.response,
     timestamp: new Date().toISOString()
   });
 }

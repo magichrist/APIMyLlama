@@ -15,7 +15,7 @@ const PRIVATE_IP_PATTERNS = [
   /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/,
   /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/,
   /^172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}$/,
-  /^192\.168\.\d{1,3}\.\d{1,3}\.\d{1,3}$/,
+  /^192\.168\.\d{1,3}\.\d{1,3}$/,
 ];
 
 function isBlockedURL(urlStr) {
@@ -409,15 +409,17 @@ function getOllamaURL() {
   });
 }
 
-function sendWebhookNotification(payload) {
-  db.all('SELECT url FROM webhooks').then(rows => {
+async function sendWebhookNotification(apikey, payload) {
+  try {
+    const rows = await db.all('SELECT * FROM webhooks WHERE api_key = ?', [apikey]);
     for (const row of rows) {
-      axios.post(row.url, { content: JSON.stringify(payload, null, 2) })
+      axios.post(row.url, payload, { timeout: 10000 })
+        .then(() => db.run('UPDATE webhooks SET last_triggered = ? WHERE id = ?', [new Date().toISOString(), row.id]))
         .catch(err => console.error('Error sending webhook notification:', err.message));
     }
-  }).catch(err => {
+  } catch (err) {
     console.error('Error retrieving webhooks:', err.message);
-  });
+  }
 }
 
 module.exports = {
@@ -426,5 +428,7 @@ module.exports = {
   resolveConfig,
   startCLI,
   getOllamaURL,
-  sendWebhookNotification
+  sendWebhookNotification,
+  isBlockedURL,
+  VALID_URL_PATTERN
 };

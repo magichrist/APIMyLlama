@@ -1,0 +1,7 @@
+node_modules
+.git
+*.db
+.env
+tests/
+ui/node_modules
+ui/src

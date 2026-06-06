@@ -1,4 +1,4 @@
-const ADMIN_TOKEN = 'admin'
+const ADMIN_TOKEN = import.meta.env.VITE_ADMIN_TOKEN || 'admin'
 
 async function request(path, options = {}) {
   const res = await fetch(path, {
@@ -45,10 +45,12 @@ export const api = {
     method: 'POST'
   }),
   getActivity: () => request('/v1/admin/activity'),
-  getWebhooks: () => request('/v1/admin/webhooks'),
-  addWebhook: (url) => request('/v1/admin/webhooks', {
+  getWebhooks: (key) => key
+    ? request(`/v1/admin/webhooks?key=${encodeURIComponent(key)}`)
+    : request('/v1/admin/webhooks'),
+  addWebhook: (url, apiKey) => request('/v1/admin/webhooks', {
     method: 'POST',
-    body: JSON.stringify({ url })
+    body: JSON.stringify({ url, apiKey })
   }),
   deleteWebhook: (id) => request(`/v1/admin/webhooks/${id}`, {
     method: 'DELETE'

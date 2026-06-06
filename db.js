@@ -14,6 +14,8 @@ class Database {
           reject(err);
         } else {
           console.log('Connected to the apiKeys.db database.');
+          this.db.run('PRAGMA journal_mode=WAL');
+          this.db.run('PRAGMA synchronous=NORMAL');
           this.createTables().then(resolve).catch(reject);
         }
       });
@@ -39,7 +41,10 @@ class Database {
 
     await this.run(`CREATE TABLE IF NOT EXISTS webhooks (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      url TEXT NOT NULL
+      url TEXT NOT NULL,
+      api_key TEXT,
+      last_triggered TIMESTAMP,
+      FOREIGN KEY (api_key) REFERENCES apiKeys(key)
     )`);
 
     await this.ensureColumns();
@@ -63,6 +68,17 @@ class Database {
     if (!usageCols.includes('model')) {
       await this.run("ALTER TABLE apiUsage ADD COLUMN model TEXT");
       console.log("Added 'model' column to 'apiUsage' table.");
+    }
+
+    const webhookRows = await this.all("PRAGMA table_info(webhooks)");
+    const webhookCols = webhookRows.map(r => r.name);
+    if (!webhookCols.includes('api_key')) {
+      await this.run("ALTER TABLE webhooks ADD COLUMN api_key TEXT");
+      console.log("Added 'api_key' column to 'webhooks' table.");
+    }
+    if (!webhookCols.includes('last_triggered')) {
+      await this.run("ALTER TABLE webhooks ADD COLUMN last_triggered TIMESTAMP");
+      console.log("Added 'last_triggered' column to 'webhooks' table.");
     }
   }
 

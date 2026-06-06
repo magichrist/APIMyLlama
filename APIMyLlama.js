@@ -1,20 +1,25 @@
 const express = require('express');
+const compression = require('compression');
+const morgan = require('morgan');
+const path = require('path');
 const db = require('./db');
 const { startServer, resolveConfig, startCLI, getServer } = require('./utils');
 const { setupRoutes } = require('./api');
 const { setupAdminRoutes } = require('./admin-api');
 
 const app = express();
+const isProduction = process.env.NODE_ENV === 'production';
 
 async function main() {
-  console.log('APIMyLlama V2 is being started. Thanks for choosing Gimer Studios.');
+  console.log('APIMyLlama V2 starting' + (isProduction ? ' (production)' : ' (development)'));
 
+  app.use(compression());
   app.use(express.json({ limit: '10mb' }));
+  app.use(morgan(isProduction ? 'combined' : 'dev'));
 
-  app.use((req, res, next) => {
-    console.log(`Received a ${req.method} request at ${req.url}`);
-    next();
-  });
+  if (isProduction) {
+    app.use(express.static(path.join(__dirname, 'ui', 'dist')));
+  }
 
   app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
@@ -28,6 +33,12 @@ async function main() {
 
   setupRoutes(app);
   setupAdminRoutes(app);
+
+  if (isProduction) {
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(__dirname, 'ui', 'dist', 'index.html'));
+    });
+  }
 
   app.use((err, req, res, next) => {
     console.error('Unhandled error:', err);
