@@ -412,16 +412,25 @@ function getOllamaURL() {
 async function sendWebhookNotification(apikey, responseText) {
   try {
     const rows = await db.all('SELECT * FROM webhooks WHERE api_key = ?', [apikey]);
+    console.log(`sendWebhookNotification: found ${rows.length} webhooks for key "${apikey}"`);
+    if (rows.length === 0) {
+      const allRows = await db.all('SELECT url, api_key FROM webhooks');
+      console.log(`sendWebhookNotification: all webhooks in DB: ${JSON.stringify(allRows)}`);
+    }
     for (const row of rows) {
+      console.log(`sendWebhookNotification: posting to ${row.url}`);
       axios.post(row.url, { text: responseText }, {
         timeout: 10000,
         headers: { 'Content-Type': 'application/json' },
       })
-        .then(() => db.run('UPDATE webhooks SET last_triggered = ? WHERE id = ?', [new Date().toISOString(), row.id]))
-        .catch(err => console.error('Error sending webhook notification:', err.message));
+        .then(() => {
+          console.log(`sendWebhookNotification: SUCCESS posted to ${row.url}`);
+          db.run('UPDATE webhooks SET last_triggered = ? WHERE id = ?', [new Date().toISOString(), row.id]);
+        })
+        .catch(err => console.error('sendWebhookNotification: FAILED for', row.url, err.message));
     }
   } catch (err) {
-    console.error('Error retrieving webhooks:', err.message);
+    console.error('sendWebhookNotification: error retrieving webhooks:', err.message);
   }
 }
 

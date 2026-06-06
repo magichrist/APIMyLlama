@@ -280,7 +280,13 @@ function logUsage(apikey, model) {
 }
 
 function sendWebhook(apikey, payload, model) {
-  sendWebhookNotification(apikey, payload.response);
+  const responseText = payload?.response;
+  if (responseText) {
+    console.log(`Sending webhook for key ${apikey} with response (${responseText.length} chars)`);
+    sendWebhookNotification(apikey, responseText);
+  } else {
+    console.error('sendWebhook called but payload.response is empty/undefined');
+  }
 }
 
 module.exports = { setupRoutes };
