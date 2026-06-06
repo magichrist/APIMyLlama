@@ -10,11 +10,31 @@ let expressApp;
 
 const VALID_URL_PATTERN = /^https?:\/\/[^\s$.?#].[^\s]*$/i;
 
+const BLOCKED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', '::1'];
+const PRIVATE_IP_PATTERNS = [
+  /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/,
+  /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/,
+  /^172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}$/,
+  /^192\.168\.\d{1,3}\.\d{1,3}\.\d{1,3}$/,
+];
+
+function isBlockedURL(urlStr) {
+  try {
+    const host = new URL(urlStr).hostname;
+    if (BLOCKED_HOSTS.includes(host)) return true;
+    return PRIVATE_IP_PATTERNS.some(p => p.test(host));
+  } catch {
+    return true;
+  }
+}
+
 function startServer(port, app) {
   currentPort = port;
   expressApp = app;
   server = expressApp.listen(currentPort, () => console.log(`Server running on port ${currentPort}`));
 }
+
+function getServer() { return server; }
 
 async function resolveConfig(name, envVar, confFile, defaultValue) {
   if (process.env[envVar]) {
@@ -236,6 +256,10 @@ async function changeOllamaURL(newURL) {
     console.log('Invalid Ollama URL. Must be a valid http/https URL.');
     return;
   }
+  if (isBlockedURL(newURL)) {
+    console.log('URL is not allowed (private/internal network addresses are blocked)');
+    return;
+  }
   await fs.promises.writeFile('ollamaURL.conf', newURL, 'utf8');
   console.log(`Ollama URL saved to ollamaURL.conf: ${newURL}`);
 }
@@ -257,6 +281,10 @@ async function addWebhook(url) {
   }
   if (!VALID_URL_PATTERN.test(url)) {
     console.log('Invalid webhook URL. Must be a valid http/https URL.');
+    return;
+  }
+  if (isBlockedURL(url)) {
+    console.log('URL is not allowed (private/internal network addresses are blocked)');
     return;
   }
   await db.run('INSERT INTO webhooks (url) VALUES (?)', [url]);
@@ -394,6 +422,7 @@ function sendWebhookNotification(payload) {
 
 module.exports = {
   startServer,
+  getServer,
   resolveConfig,
   startCLI,
   getOllamaURL,

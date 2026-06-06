@@ -1,6 +1,6 @@
 const express = require('express');
 const db = require('./db');
-const { startServer, resolveConfig, startCLI } = require('./utils');
+const { startServer, resolveConfig, startCLI, getServer } = require('./utils');
 const { setupRoutes } = require('./api');
 
 const app = express();
@@ -27,6 +27,11 @@ async function main() {
 
   setupRoutes(app);
 
+  app.use((err, req, res, next) => {
+    console.error('Unhandled error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  });
+
   const port = await resolveConfig('port number', 'PORT', 'port.conf', '3000');
   await resolveConfig('Ollama server URL', 'OLLAMA_URL', 'ollamaURL.conf', 'http://localhost:11434');
 
@@ -34,13 +39,23 @@ async function main() {
   startCLI();
 }
 
-process.on('SIGINT', async () => {
-  console.log('\nShutting down...');
-  try {
+async function shutdown(signal) {
+  console.log(`\nReceived ${signal}, shutting down gracefully...`);
+  const srv = getServer();
+  if (srv) {
+    srv.close(async () => {
+      await db.close();
+      process.exit(0);
+    });
+  } else {
     await db.close();
-  } catch {}
-  process.exit(0);
-});
+    process.exit(0);
+  }
+  setTimeout(() => process.exit(1), 10000);
+}
+
+process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGTERM', () => shutdown('SIGTERM'));
 
 main().catch(err => {
   console.error('Failed to start:', err);

@@ -53,8 +53,9 @@ async function verifyApiKey(apikey) {
   if (!apikey) return null;
   try {
     return await db.get('SELECT * FROM apiKeys WHERE key = ?', [apikey]);
-  } catch {
-    return null;
+  } catch (err) {
+    console.error('Database error during key verification:', err.message);
+    throw err;
   }
 }
 
@@ -114,7 +115,7 @@ function setupRoutes(app) {
       return res.status(403).json({ error: 'API key is deactivated' });
     }
 
-    const rateLimitError = checkRateLimit(apikey, keyInfo);
+    const rateLimitError = await checkRateLimit(apikey, keyInfo);
     if (rateLimitError) {
       return res.status(429).json({ error: rateLimitError });
     }
@@ -128,7 +129,7 @@ function setupRoutes(app) {
   app.post('/generate', generateHandler);
 }
 
-function checkRateLimit(apikey, keyInfo) {
+async function checkRateLimit(apikey, keyInfo) {
   const currentTime = Date.now();
   const minute = 60000;
   const rateLimit = keyInfo.rate_limit;
@@ -155,11 +156,15 @@ function checkRateLimit(apikey, keyInfo) {
   rateLimitInfo.tokens -= 1;
   rateLimitInfo.lastUsed = currentTime;
 
-  db.run('UPDATE apiKeys SET tokens = ?, last_used = ? WHERE key = ?', [
-    rateLimitInfo.tokens,
-    new Date(rateLimitInfo.lastUsed).toISOString(),
-    apikey
-  ]).catch(err => console.error('Error updating tokens:', err.message));
+  try {
+    await db.run('UPDATE apiKeys SET tokens = ?, last_used = ? WHERE key = ?', [
+      rateLimitInfo.tokens,
+      new Date(rateLimitInfo.lastUsed).toISOString(),
+      apikey
+    ]);
+  } catch (err) {
+    console.error('Error updating tokens:', err.message);
+  }
 
   return null;
 }
@@ -185,12 +190,29 @@ async function handleGenerate(req, res, apikey) {
       });
 
       res.setHeader('Content-Type', 'application/x-ndjson');
-      ollamaResponse.data.pipe(res);
+
+      ollamaResponse.data.on('error', (err) => {
+        console.error('Ollama stream error:', err.message);
+        if (!res.headersSent) {
+          res.status(502).json({ error: 'Upstream stream error' });
+        } else {
+          res.end();
+        }
+        logUsage(apikey);
+        sendWebhook(apikey, prompt, model, stream, images, raw);
+      });
+
+      res.on('close', () => {
+        ollamaResponse.data.destroy();
+        ollamaResponse.request.destroy();
+      });
 
       ollamaResponse.data.on('end', () => {
         logUsage(apikey);
         sendWebhook(apikey, prompt, model, stream, images, raw);
       });
+
+      ollamaResponse.data.pipe(res);
     } else {
       const ollamaResponse = await axios.post(OLLAMA_API_URL, { model, prompt, stream: false, images, raw }, {
         timeout: 300000
