@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const compression = require('compression');
 const morgan = require('morgan');
@@ -33,8 +34,12 @@ async function main() {
 
   setupRoutes(app);
   setupAdminRoutes(app);
-  console.log(`\n  Admin token: ${ADMIN_TOKEN}`);
-  console.log('  Set ADMIN_TOKEN env var to persist across restarts.\n');
+  if (process.env.ADMIN_TOKEN) {
+    console.log(`\n  Admin token: ${ADMIN_TOKEN} (from env/.env)\n`);
+  } else {
+    console.log(`\n  Admin token: ${ADMIN_TOKEN}`);
+    console.log('  Set ADMIN_TOKEN in .env file to persist across restarts.\n');
+  }
 
   if (isProduction) {
     app.get('*', (req, res) => {

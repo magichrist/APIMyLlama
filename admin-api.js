@@ -5,7 +5,9 @@ const db = require('./db');
 const { isBlockedURL, VALID_URL_PATTERN } = require('./utils');
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || crypto.randomBytes(32).toString('hex');
-if (!process.env.ADMIN_TOKEN) {
+if (process.env.ADMIN_TOKEN) {
+  console.log('ADMIN_TOKEN loaded from environment / .env file');
+} else {
   console.log('ADMIN_TOKEN env not set — generated random token (valid until restart)');
 }
 const SERVER_START = new Date().toISOString();
