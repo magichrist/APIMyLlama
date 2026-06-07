@@ -17,7 +17,7 @@
     </router-link>
 
     <!-- Navigation -->
-    <nav class="flex-1 px-3 py-4 space-y-1">
+    <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto sidebar-scrollbar">
       <router-link
         v-for="item in navItems"
         :key="item.label"
@@ -91,7 +91,7 @@
       </div>
 
       <!-- Navigation -->
-      <nav class="flex-1 px-3 py-4 space-y-1">
+      <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto sidebar-scrollbar">
         <router-link
           v-for="item in navItems"
           :key="item.label"

@@ -25,13 +25,13 @@
             <th class="text-left px-5 py-3 font-medium hidden sm:table-cell">API Key</th>
             <!-- Status column: hidden on mobile -->
             <th class="text-left px-5 py-3 font-medium hidden sm:table-cell">Status</th>
-            <th class="text-right px-5 py-3 font-medium cursor-pointer select-none hover:text-gray-300 transition-colors duration-200" @click="sortDir = sortDir === 'asc' ? 'desc' : 'asc'">
+            <th class="text-right px-5 py-3 font-medium cursor-pointer select-none hover:text-gray-300 transition-colors duration-200" @click.stop="sortDir = sortDir === 'asc' ? 'desc' : 'asc'">
               Time <Icon :name="sortDir === 'asc' ? 'arrowUp' : 'arrowDown'" class="w-3 h-3 inline -mt-0.5" />
             </th>
           </tr>
         </thead>
         <tbody class="divide-y divide-white/[0.04]">
-          <tr v-for="(row, i) in sorted" :key="i" class="transition-all duration-200 hover:bg-white/[0.06]">
+          <tr v-for="(row, i) in sorted" :key="i" class="transition-all duration-200 hover:bg-white/[0.06] cursor-pointer" @click.stop="openDetail(row)">
             <td class="px-5 py-3.5">
               <div class="flex items-center gap-3">
                 <!-- Icon container with gradient bg -->
@@ -60,12 +60,21 @@
         </tbody>
       </table>
     </div>
+    <ActivityModal :activity="selectedActivity" :visible="showDetailModal" @close="showDetailModal = false" />
   </div>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
 import Icon from './Icon.vue'
+import ActivityModal from './ActivityModal.vue'
+
+const selectedActivity = ref(null)
+const showDetailModal = ref(false)
+function openDetail(a) {
+  selectedActivity.value = a
+  showDetailModal.value = true
+}
 
 const props = defineProps({
   activities: { type: Array, default: () => [] }

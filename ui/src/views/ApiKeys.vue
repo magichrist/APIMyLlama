@@ -361,6 +361,7 @@ import { useKeyboardShortcut } from '../composables/useKeyboardShortcut.js'
 
 const toggleSidebar = inject('toggleSidebar')
 const toast = inject('toast')
+const loadingBar = inject('loadingBar')
 const loading = ref(true)
 const keys = ref([])
 const openDropdownKey = ref(null)
@@ -440,6 +441,7 @@ async function loadWebhookCounts() {
 }
 
 async function loadKeys() {
+  loadingBar?.start()
   try {
     keys.value = await api.getKeys()
     await loadWebhookCounts()
@@ -447,6 +449,7 @@ async function loadKeys() {
     toast?.error('Load failed', e.message || 'Could not load API keys')
     console.error('Failed to load keys:', e)
   } finally {
+    loadingBar?.stop()
     loading.value = false
   }
 }

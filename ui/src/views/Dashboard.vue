@@ -147,6 +147,7 @@ import { useServerHealth } from '../composables/useServerHealth.js'
 import { useKeyboardShortcut } from '../composables/useKeyboardShortcut.js'
 
 const toggleSidebar = inject('toggleSidebar')
+const loadingBar = inject('loadingBar')
 const hc = useServerHealth()
 
 const initialLoading = ref(true)
@@ -199,6 +200,7 @@ function updateUptime() {
 
 async function loadData() {
   const isRefresh = !initialLoading.value
+  loadingBar?.start()
   try {
     const t0 = performance.now()
     const [healthData, statsData, activityData] = await Promise.all([
@@ -222,12 +224,14 @@ async function loadData() {
       key: maskKey(a.key),
       status: 'Success',
       time: timeAgo(a.timestamp),
+      _raw: { fullKey: a.key, timestamp: a.timestamp, duration: a.duration, model: a.model, statusCode: a.statusCode, ip: a.ip }
     }))
   } catch (e) {
     console.error('Dashboard load failed:', e)
     hc.setHealthData({ status: 'unreachable', ollama: 'unreachable', serverStart: '' })
     if (!isRefresh) error.value = true
   } finally {
+    loadingBar?.stop()
     initialLoading.value = false
   }
 }

@@ -145,6 +145,7 @@ import { useKeyboardShortcut } from '../composables/useKeyboardShortcut.js'
 
 const toggleSidebar = inject('toggleSidebar')
 const toast = inject('toast')
+const loadingBar = inject('loadingBar')
 const loading = ref(true)
 const activeTab = ref('server')
 const tabs = [
@@ -179,6 +180,7 @@ function timeAgo(ts) {
 }
 
 async function loadSettings() {
+  loadingBar?.start()
   try {
     const [configData, webhookData, keysData] = await Promise.all([
       api.getConfig(),
@@ -191,6 +193,7 @@ async function loadSettings() {
   } catch (e) {
     toast?.error('Load failed', e.message || 'Could not load settings')
   } finally {
+    loadingBar?.stop()
     loading.value = false
   }
 }
