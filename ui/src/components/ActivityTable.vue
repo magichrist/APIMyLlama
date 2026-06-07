@@ -1,11 +1,15 @@
 <template>
-  <div class="bg-gray-900 border border-gray-800 rounded-xl">
-    <div class="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
-      <h2 class="text-sm font-semibold text-white">Recent Activity</h2>
+  <div class="relative bg-white/[0.04] backdrop-blur-xl border border-white/[0.06] rounded-xl overflow-hidden">
+    <!-- Glass header section -->
+    <div class="px-5 py-4 border-b border-white/[0.06] flex items-center justify-between bg-white/[0.02]">
+      <h2 class="text-sm font-semibold text-white flex items-center gap-2">
+        <span class="w-1 h-4 rounded-full bg-gradient-to-b from-indigo-400 to-violet-400"></span>
+        Recent Activity
+      </h2>
       <button v-if="activities.length > 0" @click="sortDir = sortDir === 'asc' ? 'desc' : 'asc'"
-        class="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-300 transition-colors">
-        <Icon :name="sortDir === 'asc' ? 'arrowUp' : 'arrowDown'" class="w-3.5 h-3.5" />
-        {{ sortDir === 'asc' ? 'Oldest first' : 'Newest first' }}
+        class="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white bg-white/[0.03] hover:bg-white/[0.08] backdrop-blur-sm border border-white/[0.04] hover:border-indigo-500/30 px-3 py-1.5 rounded-lg transition-all duration-200 group">
+        <Icon :name="sortDir === 'asc' ? 'arrowUp' : 'arrowDown'" class="w-3.5 h-3.5 group-hover:text-indigo-400 transition-colors duration-200" />
+        <span>{{ sortDir === 'asc' ? 'Oldest first' : 'Newest first' }}</span>
       </button>
     </div>
     <div v-if="sorted.length === 0" class="px-5 py-8 text-center text-sm text-gray-500">
@@ -18,17 +22,18 @@
             <th class="text-left px-5 py-3 font-medium">Event</th>
             <th class="text-left px-5 py-3 font-medium">API Key</th>
             <th class="text-left px-5 py-3 font-medium">Status</th>
-            <th class="text-right px-5 py-3 font-medium cursor-pointer select-none hover:text-gray-300 transition-colors" @click="sortDir = sortDir === 'asc' ? 'desc' : 'asc'">
+            <th class="text-right px-5 py-3 font-medium cursor-pointer select-none hover:text-gray-300 transition-colors duration-200" @click="sortDir = sortDir === 'asc' ? 'desc' : 'asc'">
               Time <Icon :name="sortDir === 'asc' ? 'arrowUp' : 'arrowDown'" class="w-3 h-3 inline -mt-0.5" />
             </th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-gray-800">
-          <tr v-for="(row, i) in sorted" :key="i" class="hover:bg-gray-800/30 transition-colors">
+        <tbody class="divide-y divide-white/[0.04]">
+          <tr v-for="(row, i) in sorted" :key="i" class="transition-all duration-200 hover:bg-white/[0.06]">
             <td class="px-5 py-3.5">
               <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center">
-                  <Icon name="message" class="w-4 h-4 text-indigo-400" />
+                <!-- Icon container with gradient bg -->
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500/20 to-violet-500/20 flex items-center justify-center ring-1 ring-white/[0.04]">
+                  <Icon name="message" class="w-4 h-4 text-indigo-300" />
                 </div>
                 <div>
                   <p class="text-sm font-medium text-gray-200">{{ row.event }}</p>
@@ -37,10 +42,11 @@
               </div>
             </td>
             <td class="px-5 py-3.5">
-              <code class="text-xs text-gray-400 bg-gray-800 px-2 py-1 rounded">{{ row.key }}</code>
+              <code class="text-xs text-gray-400 bg-white/[0.04] backdrop-blur-sm border border-white/[0.06] px-2.5 py-1 rounded-lg">{{ row.key }}</code>
             </td>
             <td class="px-5 py-3.5">
-              <span :class="['text-xs font-medium px-2.5 py-1 rounded-full', statusClass(row.status)]">
+              <!-- Status badge with subtle glow -->
+              <span :class="['text-xs font-medium px-3 py-1 rounded-full shadow-sm', statusClass(row.status)]">
                 {{ row.status }}
               </span>
             </td>

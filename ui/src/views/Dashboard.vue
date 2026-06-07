@@ -2,46 +2,52 @@
   <div class="flex-1 flex flex-col overflow-hidden">
     <Header title="Dashboard" @search="onSearch" />
     <main class="flex-1 overflow-y-auto p-6">
+      <!-- Skeleton loaders with glass styling -->
       <div v-if="initialLoading" class="space-y-6">
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div v-for="i in 3" :key="i" class="bg-gray-900 border border-gray-800 rounded-xl p-5 animate-pulse">
-            <div class="h-4 bg-gray-800 rounded w-24 mb-4"></div>
-            <div class="h-8 bg-gray-800 rounded w-20 mb-2"></div>
-            <div class="h-3 bg-gray-800 rounded w-32"></div>
+          <div v-for="i in 3" :key="i" class="bg-white/[0.04] backdrop-blur-xl border border-white/[0.06] rounded-xl p-5 animate-pulse">
+            <div class="h-4 bg-white/[0.06] rounded w-24 mb-4"></div>
+            <div class="h-8 bg-white/[0.06] rounded w-20 mb-2"></div>
+            <div class="h-3 bg-white/[0.06] rounded w-32"></div>
           </div>
         </div>
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div class="lg:col-span-2 bg-gray-900 border border-gray-800 rounded-xl p-5 animate-pulse">
-            <div class="h-4 bg-gray-800 rounded w-32 mb-4"></div>
+          <div class="lg:col-span-2 bg-white/[0.04] backdrop-blur-xl border border-white/[0.06] rounded-xl p-5 animate-pulse">
+            <div class="h-4 bg-white/[0.06] rounded w-32 mb-4"></div>
             <div class="space-y-3">
-              <div v-for="i in 4" :key="i" class="h-10 bg-gray-800 rounded"></div>
+              <div v-for="i in 4" :key="i" class="h-10 bg-white/[0.06] rounded"></div>
             </div>
           </div>
-          <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 animate-pulse">
-            <div class="h-4 bg-gray-800 rounded w-28 mb-4"></div>
+          <div class="bg-white/[0.04] backdrop-blur-xl border border-white/[0.06] rounded-xl p-5 animate-pulse">
+            <div class="h-4 bg-white/[0.06] rounded w-28 mb-4"></div>
             <div class="space-y-4">
               <div v-for="i in 4" :key="i">
-                <div class="h-3 bg-gray-800 rounded w-16 mb-2"></div>
-                <div class="h-2 bg-gray-800 rounded-full"></div>
+                <div class="h-3 bg-white/[0.06] rounded w-16 mb-2"></div>
+                <div class="h-2 bg-white/[0.06] rounded-full"></div>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div v-else-if="error" class="bg-gray-900 border border-gray-800 rounded-xl p-12 text-center">
+      <!-- Elegant error state with glass styling -->
+      <div v-else-if="error" class="bg-white/[0.04] backdrop-blur-xl border border-white/[0.06] rounded-xl p-12 text-center">
         <Icon name="warning" class="w-16 h-16 text-red-400/50 mx-auto mb-4" />
         <h2 class="text-lg font-semibold text-white mb-2">Server Unreachable</h2>
         <p class="text-sm text-gray-400 mb-6 max-w-md mx-auto">Could not connect to the APIMyLlama backend. Make sure the server is running on port 3000 and try again.</p>
-        <button @click="loadData" class="px-5 py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium rounded-lg transition-colors">
+        <button @click="loadData" class="px-5 py-2.5 bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-400 hover:to-violet-400 text-white text-sm font-medium rounded-xl transition-all duration-200 hover:shadow-lg hover:shadow-indigo-500/25">
           Retry Connection
         </button>
       </div>
 
       <template v-else>
-        <div class="flex items-center justify-between mb-4">
+        <!-- Refined status bar with glass effect -->
+        <div class="flex items-center justify-between mb-4 p-3 rounded-xl bg-white/[0.03] backdrop-blur-xl border border-white/[0.06]">
           <div class="flex items-center gap-3">
-            <div :class="['w-2 h-2 rounded-full', health.ollama === 'reachable' ? 'bg-emerald-400' : 'bg-amber-400']"></div>
+            <div class="relative w-2.5 h-2.5">
+              <div :class="['w-2.5 h-2.5 rounded-full transition-all duration-500', health.ollama === 'reachable' ? 'bg-emerald-400' : 'bg-amber-400']"></div>
+              <div v-if="health.ollama === 'reachable'" class="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-30"></div>
+            </div>
             <span class="text-xs text-gray-500">
               Server {{ health.status }} —
               Ollama {{ health.ollama === 'reachable' ? 'connected' : 'disconnected' }}
@@ -51,13 +57,14 @@
           <div class="flex items-center gap-3">
             <span class="text-xs text-gray-600">Last updated: {{ lastUpdated }}</span>
             <button @click="loadData" :disabled="refreshing"
-              class="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-400 hover:text-gray-200 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50">
+              class="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-400 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] backdrop-blur-xl border border-white/[0.06] hover:border-indigo-500/30 rounded-lg transition-all duration-200 disabled:opacity-50">
               <Icon :class="['w-3.5 h-3.5', refreshing && 'animate-spin']" name="refresh" />
               {{ refreshing ? 'Refreshing...' : 'Refresh' }}
             </button>
           </div>
         </div>
 
+        <!-- Stat cards area -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
           <StatCard
             title="Total Requests"
@@ -89,20 +96,26 @@
           />
         </div>
 
+        <!-- Activity & Usage section -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
           <div class="lg:col-span-2">
             <ActivityTable :activities="filteredActivities" />
           </div>
-          <div class="bg-gray-900 border border-gray-800 rounded-xl p-5">
-            <h2 class="text-sm font-semibold text-white mb-4">Usage Overview</h2>
+
+          <!-- Usage Overview with glass card and gradient bars -->
+          <div class="bg-white/[0.04] backdrop-blur-xl border border-white/[0.06] rounded-xl p-5">
+            <h2 class="text-sm font-semibold text-white flex items-center gap-2 mb-4">
+              <span class="w-1 h-4 rounded-full bg-gradient-to-b from-indigo-400 to-violet-400"></span>
+              Usage Overview
+            </h2>
             <div class="space-y-4">
               <div v-for="model in modelUsage" :key="model.name">
                 <div class="flex justify-between text-sm mb-1.5">
                   <span class="text-gray-400">{{ model.name }}</span>
                   <span class="text-gray-300 font-medium">{{ model.usage }}%<span class="text-gray-500 ml-1 font-normal">· {{ model.count }}</span></span>
                 </div>
-                <div class="w-full bg-gray-800 rounded-full h-2">
-                  <div class="h-2 rounded-full transition-all" :style="{ width: model.usage + '%', background: model.color }"></div>
+                <div class="w-full bg-white/[0.04] rounded-full h-2 overflow-hidden">
+                  <div class="h-2 rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-500 ease-out" :style="{ width: model.usage + '%' }"></div>
                 </div>
               </div>
             </div>
@@ -110,30 +123,34 @@
           </div>
         </div>
 
-        <div class="bg-gray-900 border border-gray-800 rounded-xl p-5">
+        <!-- Quick Actions with glass cards and refined hover -->
+        <div class="bg-white/[0.04] backdrop-blur-xl border border-white/[0.06] rounded-xl p-5">
           <div class="flex items-center justify-between mb-4">
-            <h2 class="text-sm font-semibold text-white">Quick Actions</h2>
+            <h2 class="text-sm font-semibold text-white flex items-center gap-2">
+              <span class="w-1 h-4 rounded-full bg-gradient-to-b from-indigo-400 to-violet-400"></span>
+              Quick Actions
+            </h2>
           </div>
           <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
             <button @click="$router.push('/keys')"
-              class="flex flex-col items-center gap-2 p-4 rounded-xl border border-gray-800 bg-gray-900/50 hover:bg-gray-800 hover:border-gray-700 transition-all text-center group">
-              <Icon name="plus" class="w-6 h-6 text-indigo-400 group-hover:scale-110 transition-transform" />
-              <span class="text-xs text-gray-400 font-medium">Create API Key</span>
+              class="flex flex-col items-center gap-2 p-5 rounded-xl bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] hover:bg-white/[0.08] hover:border-indigo-500/30 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-indigo-500/5 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] text-center group">
+              <Icon name="plus" class="w-6 h-6 text-indigo-400 group-hover:scale-110 group-hover:text-indigo-300 transition-all duration-300" />
+              <span class="text-xs text-gray-400 group-hover:text-gray-300 font-medium transition-colors duration-300">Create API Key</span>
             </button>
             <button @click="$router.push('/keys')"
-              class="flex flex-col items-center gap-2 p-4 rounded-xl border border-gray-800 bg-gray-900/50 hover:bg-gray-800 hover:border-gray-700 transition-all text-center group">
-              <Icon name="key" class="w-6 h-6 text-emerald-400 group-hover:scale-110 transition-transform" />
-              <span class="text-xs text-gray-400 font-medium">Manage Keys</span>
+              class="flex flex-col items-center gap-2 p-5 rounded-xl bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] hover:bg-white/[0.08] hover:border-indigo-500/30 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-indigo-500/5 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] text-center group">
+              <Icon name="key" class="w-6 h-6 text-emerald-400 group-hover:scale-110 group-hover:text-emerald-300 transition-all duration-300" />
+              <span class="text-xs text-gray-400 group-hover:text-gray-300 font-medium transition-colors duration-300">Manage Keys</span>
             </button>
             <button @click="$router.push('/settings')"
-              class="flex flex-col items-center gap-2 p-4 rounded-xl border border-gray-800 bg-gray-900/50 hover:bg-gray-800 hover:border-gray-700 transition-all text-center group">
-              <Icon name="webhook" class="w-6 h-6 text-amber-400 group-hover:scale-110 transition-transform" />
-              <span class="text-xs text-gray-400 font-medium">Webhooks</span>
+              class="flex flex-col items-center gap-2 p-5 rounded-xl bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] hover:bg-white/[0.08] hover:border-indigo-500/30 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-indigo-500/5 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] text-center group">
+              <Icon name="webhook" class="w-6 h-6 text-amber-400 group-hover:scale-110 group-hover:text-amber-300 transition-all duration-300" />
+              <span class="text-xs text-gray-400 group-hover:text-gray-300 font-medium transition-colors duration-300">Webhooks</span>
             </button>
             <button @click="$router.push('/settings')"
-              class="flex flex-col items-center gap-2 p-4 rounded-xl border border-gray-800 bg-gray-900/50 hover:bg-gray-800 hover:border-gray-700 transition-all text-center group">
-              <Icon name="settings" class="w-6 h-6 text-violet-400 group-hover:scale-110 transition-transform" />
-              <span class="text-xs text-gray-400 font-medium">Settings</span>
+              class="flex flex-col items-center gap-2 p-5 rounded-xl bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] hover:bg-white/[0.08] hover:border-indigo-500/30 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-indigo-500/5 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] text-center group">
+              <Icon name="settings" class="w-6 h-6 text-violet-400 group-hover:scale-110 group-hover:text-violet-300 transition-all duration-300" />
+              <span class="text-xs text-gray-400 group-hover:text-gray-300 font-medium transition-colors duration-300">Settings</span>
             </button>
           </div>
         </div>

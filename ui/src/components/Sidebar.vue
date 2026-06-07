@@ -1,41 +1,67 @@
 <template>
-  <aside class="w-64 h-screen bg-gray-950 text-gray-300 flex flex-col border-r border-gray-800">
-    <router-link to="/" class="p-6 border-b border-gray-800 block">
+  <aside class="w-64 h-screen bg-gray-950 text-gray-300 flex flex-col border-r border-white/[0.05]">
+    <!-- Logo area -->
+    <router-link to="/" class="p-6 block relative group">
       <div class="flex items-center gap-3">
-        <div class="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-400 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 transition-transform duration-200 group-hover:scale-105">
           <Icon name="bolt" class="w-5 h-5 text-white" />
         </div>
-        <span class="font-semibold text-white text-lg">APIMyLlama</span>
+        <div>
+          <span class="font-bold text-white text-lg tracking-tight">APIMyLlama</span>
+          <p class="text-[10px] text-gray-600 -mt-0.5">API Proxy Manager</p>
+        </div>
       </div>
+      <!-- Gradient divider -->
+      <div class="absolute bottom-0 left-6 right-6 h-px bg-gradient-to-r from-indigo-500/20 via-violet-500/20 to-transparent" />
     </router-link>
 
-    <nav class="flex-1 p-4 space-y-1">
-      <router-link v-for="item in navItems" :key="item.label"
+    <!-- Navigation -->
+    <nav class="flex-1 px-3 py-4 space-y-1">
+      <router-link
+        v-for="item in navItems"
+        :key="item.label"
         :to="item.to"
         :class="[
-          'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+          'relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 overflow-hidden',
           isActive(item.to)
-            ? 'bg-indigo-500/10 text-indigo-400'
-            : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/50'
-        ]">
-        <Icon :name="item.icon" class="w-5 h-5" />
-        {{ item.label }}
+            ? 'bg-indigo-500/10 text-indigo-400 shadow-[inset_0_0_12px_rgba(99,102,241,0.08)]'
+            : 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.03]'
+        ]"
+      >
+        <!-- Left border accent for active item -->
+        <div
+          v-if="isActive(item.to)"
+          class="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-gradient-to-b from-indigo-400 to-violet-500 rounded-r-full"
+        />
+        <Icon
+          :name="item.icon"
+          class="w-5 h-5 relative transition-all duration-200"
+          :class="isActive(item.to) ? 'text-indigo-400' : 'opacity-70 group-hover:opacity-100'"
+        />
+        <span class="relative">{{ item.label }}</span>
       </router-link>
     </nav>
 
-    <div class="p-4 border-t border-gray-800 space-y-3">
-      <div class="flex items-center gap-3">
-        <div class="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-400 to-purple-600 flex items-center justify-center text-white text-sm font-medium">
-          AT
+    <!-- Gradient divider -->
+    <div class="mx-4 h-px bg-gradient-to-r from-transparent via-white/[0.06] to-transparent" />
+
+    <!-- Bottom profile card -->
+    <div class="p-4">
+      <div class="rounded-xl bg-white/[0.03] backdrop-blur-sm border border-white/[0.05] p-3 transition-all duration-200 hover:bg-white/[0.05]">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-400 to-purple-600 flex items-center justify-center text-white text-sm font-medium shrink-0 shadow-sm">
+            AT
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-white truncate">Admin User</p>
+            <p class="text-xs text-gray-500 truncate">admin@apimy.com</p>
+          </div>
         </div>
-        <div class="flex-1 min-w-0">
-          <p class="text-sm font-medium text-white truncate">Admin User</p>
-          <p class="text-xs text-gray-500 truncate">admin@apimy.com</p>
+        <!-- Subtle uptime indicator -->
+        <div v-if="uptime" class="flex items-center gap-1.5 mt-2.5 pt-2.5 border-t border-white/[0.04]">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500/60" />
+          <span class="text-[10px] text-gray-600 font-mono">Up {{ uptime }}</span>
         </div>
-      </div>
-      <div v-if="uptime" class="flex items-center gap-2 text-xs text-gray-600 pt-2 border-t border-gray-800">
-        <span class="w-2 h-2 rounded-full bg-emerald-500" />
-        <span>Up {{ uptime }}</span>
       </div>
     </div>
   </aside>
