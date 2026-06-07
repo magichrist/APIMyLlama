@@ -144,19 +144,20 @@ describe('API Routes', function () {
       expect(res.body.response).to.equal('Hello from Llama!');
     });
 
-    it('should extract API key from the apikey body field', async function () {
+    it('should reject API key from the apikey body field (removed feature)', async function () {
       const res = await request(app)
         .post('/generate')
         .send({ prompt: 'Hello', model: 'llama3', apikey: testKey });
-      expect(res.status).to.equal(200);
-      expect(res.body.response).to.equal('Hello from Llama!');
+      expect(res.status).to.equal(401);
+      expect(res.body.error).to.include('API key is required');
     });
 
-    it('should extract API key from the apikey query parameter', async function () {
+    it('should reject API key from the apikey query parameter (removed feature)', async function () {
       const res = await request(app)
         .post(`/generate?apikey=${testKey}`)
         .send({ prompt: 'Hello', model: 'llama3' });
-      expect(res.status).to.equal(200);
+      expect(res.status).to.equal(401);
+      expect(res.body.error).to.include('API key is required');
     });
 
     it('should return 503 when Ollama is unreachable', async function () {

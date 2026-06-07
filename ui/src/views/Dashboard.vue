@@ -3,8 +3,8 @@
     <Header title="Dashboard" @search="onSearch" />
     <main class="flex-1 overflow-y-auto p-6">
       <div v-if="initialLoading" class="space-y-6">
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div v-for="i in 4" :key="i" class="bg-gray-900 border border-gray-800 rounded-xl p-5 animate-pulse">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div v-for="i in 3" :key="i" class="bg-gray-900 border border-gray-800 rounded-xl p-5 animate-pulse">
             <div class="h-4 bg-gray-800 rounded w-24 mb-4"></div>
             <div class="h-8 bg-gray-800 rounded w-20 mb-2"></div>
             <div class="h-3 bg-gray-800 rounded w-32"></div>
@@ -58,7 +58,7 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
           <StatCard
             title="Total Requests"
             :value="formatNumber(stats.totalRequests)"
@@ -76,15 +76,6 @@
             icon="key"
             icon-bg="bg-emerald-500/10"
             icon-color="text-emerald-400"
-          />
-          <StatCard
-            title="Avg Latency"
-            :value="stats.avgLatency + 'ms'"
-            subtitle="Last 24 hours"
-            change="—"
-            icon="clock"
-            icon-bg="bg-amber-500/10"
-            icon-color="text-amber-400"
           />
           <StatCard
             title="Server Uptime"
@@ -172,6 +163,7 @@ const modelUsage = ref([])
 const searchQuery = ref('')
 
 let refreshTimer = null
+let uptimeTimer = null
 
 const filteredActivities = computed(() => {
   const q = searchQuery.value.toLowerCase()
@@ -223,8 +215,8 @@ function updateUptime() {
 }
 
 async function loadData() {
-  error.value = false
-  if (!initialLoading.value) refreshing.value = true
+  const isRefresh = !initialLoading.value
+  if (isRefresh) refreshing.value = true
   try {
     const [healthData, statsData, activityData] = await Promise.all([
       api.getHealth(),
@@ -249,7 +241,7 @@ async function loadData() {
     lastUpdated.value = new Date().toLocaleTimeString()
   } catch (e) {
     console.error('Dashboard load failed:', e)
-    error.value = true
+    if (!isRefresh) error.value = true
   } finally {
     initialLoading.value = false
     refreshing.value = false
@@ -260,10 +252,11 @@ onMounted(() => {
   loadData()
   updateUptime()
   refreshTimer = setInterval(loadData, 30000)
-  setInterval(updateUptime, 1000)
+  uptimeTimer = setInterval(updateUptime, 1000)
 })
 
 onUnmounted(() => {
-  if (refreshTimer) clearInterval(refreshTimer)
+  clearInterval(refreshTimer)
+  clearInterval(uptimeTimer)
 })
 </script>

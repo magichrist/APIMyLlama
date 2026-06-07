@@ -53,7 +53,9 @@ async function isBlockedURL(urlStr) {
     try {
       const v4 = await dns.resolve4(host);
       if (v4.some(ip => isPrivateIPv4(ip))) return true;
-    } catch {}
+    } catch {
+      return true;
+    }
     try {
       const v6 = await dns.resolve6(host);
       if (v6.some(ip => isPrivateIPv6(ip))) return true;
@@ -137,7 +139,7 @@ async function startCLI() {
           await setRateLimit(argument, rest[0]);
           break;
         case 'addwebhook':
-          await addWebhook(argument);
+          await addWebhook(argument, rest[0]);
           break;
         case 'deletewebhook':
           await deleteWebhook(argument);
@@ -196,7 +198,7 @@ Available commands:
   ratelimit <key> <limit>        Set rate limit for a key
   changeport <port>              Change the server port
   changeollamaurl <url>          Change the Ollama URL
-  addwebhook <url>               Add a webhook
+  addwebhook <url> [api_key]     Add a webhook (optionally linked to an API key)
   deletewebhook <id>             Delete a webhook by ID
   listwebhooks                   List all webhooks
   help                           Show this help message
@@ -310,7 +312,7 @@ async function setRateLimit(key, limit) {
   console.log(`Rate limit set to ${rateLimit} requests per minute for API key: ${key}`);
 }
 
-async function addWebhook(url) {
+async function addWebhook(url, apiKey) {
   if (!url) {
     console.log('Webhook URL is required');
     return;
@@ -323,7 +325,16 @@ async function addWebhook(url) {
     console.log('URL is not allowed (private/internal network addresses are blocked)');
     return;
   }
-  await db.run('INSERT INTO webhooks (url) VALUES (?)', [url]);
+  if (apiKey) {
+    const keyExists = await db.get('SELECT key FROM apiKeys WHERE key = ?', [apiKey]);
+    if (!keyExists) {
+      console.log('API key not found');
+      return;
+    }
+    await db.run('INSERT INTO webhooks (url, api_key) VALUES (?, ?)', [url, apiKey]);
+  } else {
+    await db.run('INSERT INTO webhooks (url) VALUES (?)', [url]);
+  }
   console.log(`Webhook added: ${url}`);
 }
 
@@ -425,6 +436,9 @@ async function listActiveKeys() {
 }
 
 function getOllamaURL() {
+  if (process.env.OLLAMA_URL) {
+    return Promise.resolve(process.env.OLLAMA_URL);
+  }
   return new Promise((resolve, reject) => {
     if (fs.existsSync('ollamaURL.conf')) {
       fs.readFile('ollamaURL.conf', 'utf8', (err, data) => {
@@ -445,17 +459,58 @@ function getOllamaURL() {
   });
 }
 
+async function resolveAndVerify(urlStr) {
+  const parsed = new URL(urlStr);
+  const host = parsed.hostname;
+  const ips = [];
+
+  try {
+    const v4 = await dns.resolve4(host);
+    ips.push(...v4);
+  } catch {}
+
+  try {
+    const v6 = await dns.resolve6(host);
+    ips.push(...v6);
+  } catch {}
+
+  if (ips.length === 0) return null;
+
+  for (const ip of ips) {
+    if (net.isIPv4(ip) && isPrivateIPv4(ip)) return null;
+    if (net.isIPv6(ip) && isPrivateIPv6(ip)) return null;
+  }
+
+  // Pick the first resolved IP to connect to directly, preventing DNS rebinding
+  const ip = ips[0];
+  const portPart = parsed.port ? `:${parsed.port}` : '';
+  const ipUrl = `${parsed.protocol}//${ip}${portPart}${parsed.pathname}${parsed.search}${parsed.hash}`;
+
+  return { url: ipUrl, host };
+}
+
 async function sendWebhookNotification(apikey, responseText) {
   try {
     const rows = await db.all('SELECT * FROM webhooks WHERE api_key = ?', [apikey]);
-    for (const row of rows) {
-      axios.post(row.url, { text: responseText }, {
-        timeout: 10000,
-        maxRedirects: 0,
-        headers: { 'Content-Type': 'application/json' },
-      })
-        .then(() => db.run('UPDATE webhooks SET last_triggered = ? WHERE id = ?', [new Date().toISOString(), row.id]))
-        .catch(err => console.error('Error sending webhook notification:', err.message));
+    const results = await Promise.allSettled(rows.map(async (row) => {
+      try {
+        const verified = await resolveAndVerify(row.url);
+        if (!verified) {
+          console.error('Webhook URL resolves to a blocked or unresolvable address:', row.url);
+          return;
+        }
+        await axios.post(verified.url, { text: responseText }, {
+          timeout: 10000,
+          maxRedirects: 0,
+          headers: { 'Content-Type': 'application/json', 'Host': verified.host },
+        });
+        await db.run('UPDATE webhooks SET last_triggered = ? WHERE id = ?', [new Date().toISOString(), row.id]);
+      } catch (err) {
+        console.error('Error sending webhook notification:', err.message);
+      }
+    }));
+    for (const r of results) {
+      if (r.status === 'rejected') console.error('Webhook send failed:', r.reason?.message);
     }
   } catch (err) {
     console.error('Error retrieving webhooks:', err.message);
@@ -470,5 +525,6 @@ module.exports = {
   getOllamaURL,
   sendWebhookNotification,
   isBlockedURL,
+  resolveAndVerify,
   VALID_URL_PATTERN
 };

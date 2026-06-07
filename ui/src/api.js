@@ -1,7 +1,12 @@
-let _token = null
+let _token = sessionStorage.getItem('admin_token') || null
 
 export function setToken(token) {
   _token = token
+  if (token) {
+    sessionStorage.setItem('admin_token', token)
+  } else {
+    sessionStorage.removeItem('admin_token')
+  }
 }
 
 export function getToken() {

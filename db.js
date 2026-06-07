@@ -8,14 +8,14 @@ class Database {
   initialize() {
     return new Promise((resolve, reject) => {
       const dbPath = process.env.API_KEYS_DB_PATH || './apiKeys.db';
-      this.db = new sqlite3.Database(dbPath, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, (err) => {
+      this.db = new sqlite3.Database(dbPath, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, async (err) => {
         if (err) {
           console.error('Error connecting to the database:', err.message);
           reject(err);
         } else {
           console.log('Connected to the apiKeys.db database.');
-          this.db.run('PRAGMA journal_mode=WAL');
-          this.db.run('PRAGMA synchronous=NORMAL');
+          await this.run('PRAGMA journal_mode=WAL');
+          await this.run('PRAGMA synchronous=NORMAL');
           this.createTables().then(resolve).catch(reject);
         }
       });
@@ -116,9 +116,14 @@ class Database {
         return;
       }
       this.db.close((err) => {
+        this.db = null;
         if (err) {
-          console.error('Error closing the database connection:', err.message);
-          reject(err);
+          if (err.message === 'SQLITE_MISUSE: Database is closed') {
+            resolve();
+          } else {
+            console.error('Error closing the database connection:', err.message);
+            reject(err);
+          }
         } else {
           console.log('Closed the database connection.');
           resolve();

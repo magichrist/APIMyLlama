@@ -2,7 +2,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const axios = require('axios');
 const db = require('./db');
-const { isBlockedURL, VALID_URL_PATTERN } = require('./utils');
+const { isBlockedURL, VALID_URL_PATTERN, getOllamaURL } = require('./utils');
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || crypto.randomBytes(32).toString('hex');
 if (process.env.ADMIN_TOKEN) {
@@ -77,7 +77,8 @@ function setupAdminRoutes(app) {
       if (e.code === 'ECONNREFUSED' || e.message?.includes('not found')) {
         return res.json([]);
       }
-      res.status(502).json({ error: 'Failed to fetch models from Ollama', detail: e.message });
+      console.error('Failed to fetch models from Ollama:', e.message);
+      res.status(502).json({ error: 'Failed to fetch models from Ollama' });
     }
   });
 
@@ -90,8 +91,6 @@ function setupAdminRoutes(app) {
       const uniqueKeysUsed = await db.get('SELECT COUNT(DISTINCT key) as count FROM apiUsage');
       const errorCount = await db.get("SELECT COUNT(*) as count FROM apiUsage WHERE timestamp >= datetime('now', '-24 hours')");
       const modelUsage = await db.all("SELECT model, COUNT(*) as count FROM apiUsage WHERE model IS NOT NULL AND model != '' GROUP BY model ORDER BY count DESC");
-      const avgLatency = '342';
-
       const totalModel = modelUsage.reduce((s, m) => s + m.count, 0);
       const modelColors = [
         'linear-gradient(90deg, #818cf8, #6366f1)',
@@ -110,7 +109,6 @@ function setupAdminRoutes(app) {
         recentRequests: recentUsage.count,
         uniqueKeysUsed: uniqueKeysUsed.count,
         serverStart: SERVER_START,
-        avgLatency,
         errorRate: totalUsage.count > 0 ? ((errorCount.count / totalUsage.count) * 100).toFixed(2) : '0.00',
         modelUsage: modelUsage.map((m, i) => ({
           name: m.model,
@@ -120,7 +118,8 @@ function setupAdminRoutes(app) {
         }))
       });
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      console.error('Admin API error:', err.message);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -129,7 +128,8 @@ function setupAdminRoutes(app) {
       const rows = await db.all('SELECT * FROM apiKeys ORDER BY created_at DESC');
       res.json(rows);
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      console.error('Admin API error:', err.message);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -139,7 +139,8 @@ function setupAdminRoutes(app) {
       if (!row) return res.status(404).json({ error: 'API key not found' });
       res.json(row);
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      console.error('Admin API error:', err.message);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -155,7 +156,8 @@ function setupAdminRoutes(app) {
       const row = await db.get('SELECT * FROM apiKeys WHERE key = ?', [apiKey]);
       res.status(201).json(row);
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      console.error('Admin API error:', err.message);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -165,7 +167,8 @@ function setupAdminRoutes(app) {
       if (result.changes === 0) return res.status(404).json({ error: 'API key not found' });
       res.json({ message: 'API key removed' });
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      console.error('Admin API error:', err.message);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -175,7 +178,8 @@ function setupAdminRoutes(app) {
       if (result.changes === 0) return res.status(404).json({ error: 'API key not found' });
       res.json({ message: 'API key activated' });
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      console.error('Admin API error:', err.message);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -185,7 +189,8 @@ function setupAdminRoutes(app) {
       if (result.changes === 0) return res.status(404).json({ error: 'API key not found' });
       res.json({ message: 'API key deactivated' });
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      console.error('Admin API error:', err.message);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -198,7 +203,8 @@ function setupAdminRoutes(app) {
       const row = await db.get('SELECT * FROM apiKeys WHERE key = ?', [req.params.key]);
       res.json(row);
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      console.error('Admin API error:', err.message);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -211,7 +217,8 @@ function setupAdminRoutes(app) {
       const row = await db.get('SELECT * FROM apiKeys WHERE key = ?', [req.params.key]);
       res.json(row);
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      console.error('Admin API error:', err.message);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -220,11 +227,15 @@ function setupAdminRoutes(app) {
       const existing = await db.get('SELECT * FROM apiKeys WHERE key = ?', [req.params.key]);
       if (!existing) return res.status(404).json({ error: 'API key not found' });
       const newKey = crypto.randomBytes(20).toString('hex');
+      await db.run('BEGIN TRANSACTION');
       await db.run('UPDATE apiKeys SET key = ? WHERE key = ?', [newKey, req.params.key]);
       const row = await db.get('SELECT * FROM apiKeys WHERE key = ?', [newKey]);
+      await db.run('COMMIT');
       res.json(row);
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      await db.run('ROLLBACK').catch(() => {});
+      console.error('Admin API error:', err.message);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -240,7 +251,8 @@ function setupAdminRoutes(app) {
       }));
       res.json(enriched);
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      console.error('Admin API error:', err.message);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -255,7 +267,8 @@ function setupAdminRoutes(app) {
       }
       res.json(rows);
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      console.error('Admin API error:', err.message);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -276,7 +289,8 @@ function setupAdminRoutes(app) {
       const rows = await db.all('SELECT * FROM webhooks ORDER BY id DESC LIMIT 1');
       res.status(201).json(rows[0]);
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      console.error('Admin API error:', err.message);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -286,7 +300,8 @@ function setupAdminRoutes(app) {
       if (result.changes === 0) return res.status(404).json({ error: 'Webhook not found' });
       res.json({ message: 'Webhook deleted' });
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      console.error('Admin API error:', err.message);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -295,28 +310,12 @@ function setupAdminRoutes(app) {
       refreshConfigCache();
       res.json({ ...configCache, serverStart: SERVER_START });
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      console.error('Admin API error:', err.message);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
   refreshConfigCache();
-}
-
-async function getOllamaURL() {
-  return new Promise((resolve, reject) => {
-    if (fs.existsSync('ollamaURL.conf')) {
-      fs.readFile('ollamaURL.conf', 'utf8', (err, data) => {
-        if (err) reject(new Error('Error reading Ollama url from file'));
-        else {
-          const url = data.trim();
-          if (!url) reject(new Error('Invalid Ollama url'));
-          else resolve(url);
-        }
-      });
-    } else {
-      reject(new Error('Ollama url configuration file not found'));
-    }
-  });
 }
 
 module.exports = { setupAdminRoutes, ADMIN_TOKEN };

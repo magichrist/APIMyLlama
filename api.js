@@ -13,6 +13,18 @@ const failedAttempts = new Map();
 
 const healthCache = { data: null, ttl: 0 };
 
+const CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
+setInterval(() => {
+  const now = Date.now();
+  for (const [apikey, info] of rateLimits) {
+    if (now - info.lastUsed > 60000) rateLimits.delete(apikey);
+  }
+  for (const [ip, record] of failedAttempts) {
+    if (record.lockedUntil && now >= record.lockedUntil) failedAttempts.delete(ip);
+    else if (!record.lockedUntil && now - record.firstAttempt > LOCKOUT_DURATION_MS) failedAttempts.delete(ip);
+  }
+}, CLEANUP_INTERVAL_MS);
+
 function getClientIp(req) {
   return req.ip || req.socket?.remoteAddress || 'unknown';
 }
@@ -50,19 +62,23 @@ function extractApiKey(req) {
   if (authHeader && authHeader.startsWith('Bearer ')) {
     return authHeader.slice(7);
   }
-  return req.body?.apikey || req.query?.apikey || null;
+  return null;
 }
 
-function flushRateLimitBatch() {
+async function flushRateLimitBatch() {
+  const promises = [];
   for (const [apikey, info] of rateLimitBatchQueue) {
-    db.run('UPDATE apiKeys SET tokens = ?, last_used = ? WHERE key = ?', [
-      info.tokens,
-      new Date(info.lastUsed).toISOString(),
-      apikey
-    ]).catch(err => console.error('Error flushing rate limit batch:', err.message));
+    promises.push(
+      db.run('UPDATE apiKeys SET tokens = ?, last_used = ? WHERE key = ?', [
+        info.tokens,
+        new Date(info.lastUsed).toISOString(),
+        apikey
+      ]).catch(() => {})
+    );
   }
   rateLimitBatchQueue.clear();
   rateLimitBatchTimer = null;
+  await Promise.allSettled(promises);
 }
 
 function scheduleRateLimitFlush() {
@@ -92,7 +108,7 @@ async function authenticateRequest(req, res) {
   const apikey = extractApiKey(req);
   if (!apikey) {
     recordFailedAttempt(ip);
-    return res.status(401).json({ error: 'API key is required (use Authorization: Bearer header or ?apikey= param)' });
+    return res.status(401).json({ error: 'API key is required (use Authorization: Bearer header)' });
   }
 
   const keyInfo = await verifyApiKey(apikey);
@@ -164,7 +180,7 @@ async function checkRateLimit(apikey, keyInfo) {
   const rateLimit = keyInfo.rate_limit;
 
   if (!rateLimits.has(apikey)) {
-    const lastUsed = new Date(keyInfo.last_used).getTime();
+    const lastUsed = keyInfo.last_used ? new Date(keyInfo.last_used).getTime() : 0;
     const timeElapsed = currentTime - lastUsed;
     const tokens = timeElapsed >= minute ? rateLimit : Math.min(keyInfo.tokens, rateLimit);
     rateLimits.set(apikey, { tokens, lastUsed });
@@ -216,10 +232,20 @@ async function handleGenerate(req, res, apikey) {
 
       res.setHeader('Content-Type', 'application/x-ndjson');
 
-      let streamBody = '';
+      let responseText = '';
+      let incomplete = '';
 
       ollamaResponse.data.on('data', (chunk) => {
-        streamBody += chunk.toString();
+        incomplete += chunk.toString();
+        const lines = incomplete.split('\n');
+        incomplete = lines.pop() || '';
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const parsed = JSON.parse(line);
+            if (parsed.response) responseText += parsed.response;
+          } catch {}
+        }
       });
 
       ollamaResponse.data.on('error', (err) => {
@@ -239,13 +265,6 @@ async function handleGenerate(req, res, apikey) {
 
       ollamaResponse.data.on('end', () => {
         logUsage(apikey, model);
-        const lines = streamBody.trim().split('\n').filter(Boolean);
-        const lastLine = lines[lines.length - 1];
-        let responseText = '';
-        try {
-          const parts = lines.map(l => JSON.parse(l));
-          responseText = parts.map(p => p.response).join('');
-        } catch {}
         sendWebhook(apikey, { prompt, model, response: responseText }, model);
       });
 
@@ -263,7 +282,7 @@ async function handleGenerate(req, res, apikey) {
   } catch (error) {
     if (error.response) {
       console.error('Ollama API error:', error.response.status, error.response.data);
-      res.status(error.response.status).json({ error: 'Ollama API error', detail: error.response.data });
+      res.status(error.response.status).json({ error: 'Ollama API error' });
     } else if (error.code === 'ECONNREFUSED') {
       console.error('Ollama server is not reachable:', error.message);
       res.status(503).json({ error: 'Ollama server is not reachable' });
@@ -286,4 +305,4 @@ function sendWebhook(apikey, payload, model) {
   }
 }
 
-module.exports = { setupRoutes };
+module.exports = { setupRoutes, flushRateLimitBatch };

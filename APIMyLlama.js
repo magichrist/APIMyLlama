@@ -5,7 +5,7 @@ const morgan = require('morgan');
 const path = require('path');
 const db = require('./db');
 const { startServer, resolveConfig, startCLI, getServer } = require('./utils');
-const { setupRoutes } = require('./api');
+const { setupRoutes, flushRateLimitBatch } = require('./api');
 const { setupAdminRoutes, ADMIN_TOKEN } = require('./admin-api');
 
 const app = express();
@@ -16,14 +16,36 @@ async function main() {
 
   app.use(compression());
   app.use(express.json({ limit: '10mb' }));
-  app.use(morgan(isProduction ? 'combined' : 'dev'));
+  morgan.token('sanitized-url', (req) => {
+    return req.url || '';
+  });
+  const morganFormat = isProduction
+    ? ':remote-addr - :remote-user [:date[clf]] ":method :sanitized-url HTTP/:http-version" :status :res[content-length]'
+    : ':method :sanitized-url :status :res[content-length] - :response-time ms';
+  app.use(morgan(morganFormat));
 
   if (isProduction) {
     app.use(express.static(path.join(__dirname, 'ui', 'dist')));
   }
 
   app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
+    const origin = req.headers.origin;
+
+    if (isProduction) {
+      // Production: same-origin only — do not reflect origin or set credentials
+      if (origin) {
+        res.header('Vary', 'Origin');
+      }
+    } else {
+      // Development: allow all origins but never set credentials with wildcard
+      if (origin) {
+        res.header('Access-Control-Allow-Origin', origin);
+        res.header('Vary', 'Origin');
+      } else {
+        res.header('Access-Control-Allow-Origin', '*');
+      }
+    }
+
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-admin-token');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     if (req.method === 'OPTIONS') return res.sendStatus(200);
@@ -35,14 +57,17 @@ async function main() {
   setupRoutes(app);
   setupAdminRoutes(app);
   if (process.env.ADMIN_TOKEN) {
-    console.log(`\n  Admin token: ${ADMIN_TOKEN} (from env/.env)\n`);
+    console.log('\n  Admin token: **************** (loaded from env/.env)\n');
   } else {
-    console.log(`\n  Admin token: ${ADMIN_TOKEN}`);
+    console.log('\n  Admin token: **************** (randomly generated, valid until restart)');
     console.log('  Set ADMIN_TOKEN in .env file to persist across restarts.\n');
   }
 
   if (isProduction) {
     app.get('*', (req, res) => {
+      if (req.path.startsWith('/v1/') || req.path.startsWith('/api/')) {
+        return res.status(404).json({ error: 'Not found' });
+      }
       res.sendFile(path.join(__dirname, 'ui', 'dist', 'index.html'));
     });
   }
@@ -63,15 +88,21 @@ async function shutdown(signal) {
   console.log(`\nReceived ${signal}, shutting down gracefully...`);
   const srv = getServer();
   if (srv) {
+    const forceExit = setTimeout(() => {
+      console.error('Forced exit after timeout');
+      process.exit(1);
+    }, 10000);
     srv.close(async () => {
+      clearTimeout(forceExit);
+      await flushRateLimitBatch();
       await db.close();
       process.exit(0);
     });
   } else {
+    await flushRateLimitBatch();
     await db.close();
     process.exit(0);
   }
-  setTimeout(() => process.exit(1), 10000);
 }
 
 process.on('SIGINT', () => shutdown('SIGINT'));

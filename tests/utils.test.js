@@ -1,6 +1,7 @@
 const { expect } = require('chai');
 const sinon = require('sinon');
 const axios = require('axios');
+const dnsPromises = require('dns/promises');
 const fs = require('fs');
 const path = require('path');
 const { freshRequire, cleanupTestDb, getTestDbPath } = require('./setup');
@@ -26,12 +27,25 @@ describe('Utils', function () {
   });
 
   describe('getOllamaURL', function () {
-    it('should return the URL from ollamaURL.conf', async function () {
+    beforeEach(function () {
+      delete process.env.OLLAMA_URL;
+    });
+
+    it('should return the URL from OLLAMA_URL env var', async function () {
+      process.env.OLLAMA_URL = 'http://env-ollama:11434';
       const url = await utils.getOllamaURL();
-      expect(url).to.equal('http://localhost:11434');
+      expect(url).to.equal('http://env-ollama:11434');
+    });
+
+    it('should return the URL from ollamaURL.conf', async function () {
+      delete process.env.OLLAMA_URL;
+      fs.writeFileSync('ollamaURL.conf', 'http://ollama:11434', 'utf8');
+      const url = await utils.getOllamaURL();
+      expect(url).to.equal('http://ollama:11434');
     });
 
     it('should reject if ollamaURL.conf does not exist', async function () {
+      delete process.env.OLLAMA_URL;
       try {
         fs.unlinkSync('ollamaURL.conf');
       } catch {}
@@ -44,6 +58,7 @@ describe('Utils', function () {
     });
 
     it('should reject if ollamaURL.conf is empty', async function () {
+      delete process.env.OLLAMA_URL;
       fs.writeFileSync('ollamaURL.conf', '', 'utf8');
       try {
         await utils.getOllamaURL();
@@ -56,13 +71,19 @@ describe('Utils', function () {
 
   describe('sendWebhookNotification', function () {
     let axiosPostStub;
+    let dnsResolve4Stub;
+    let dnsResolve6Stub;
 
     beforeEach(async function () {
       axiosPostStub = sinon.stub(axios, 'post').resolves({ status: 200 });
+      dnsResolve4Stub = sinon.stub(dnsPromises, 'resolve4').resolves(['93.184.216.34']);
+      dnsResolve6Stub = sinon.stub(dnsPromises, 'resolve6').rejects(new Error('No AAAA record'));
     });
 
     afterEach(function () {
       axiosPostStub.restore();
+      dnsResolve4Stub.restore();
+      dnsResolve6Stub.restore();
     });
 
     it('should send notifications to key-associated webhooks', async function () {
@@ -74,9 +95,10 @@ describe('Utils', function () {
       await new Promise(r => setTimeout(r, 100));
 
       expect(axiosPostStub.callCount).to.equal(1);
-      expect(axiosPostStub.firstCall.args[0]).to.equal('https://hook1.example.com');
+      expect(axiosPostStub.firstCall.args[0]).to.equal('https://93.184.216.34/');
       expect(axiosPostStub.firstCall.args[1]).to.deep.equal({ text: 'Hello from the LLM!' });
       expect(axiosPostStub.firstCall.args[2].headers['Content-Type']).to.equal('application/json');
+      expect(axiosPostStub.firstCall.args[2].headers['Host']).to.equal('hook1.example.com');
     });
 
     it('should not send when no webhooks match the key', async function () {

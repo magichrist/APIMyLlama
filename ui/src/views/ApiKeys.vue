@@ -42,7 +42,7 @@
         <button @click="showCreateModal = true" class="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium rounded-lg transition-colors">Create API Key</button>
       </div>
 
-      <div v-else class="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+      <div v-else class="bg-gray-900 border border-gray-800 rounded-xl overflow-visible">
         <table class="w-full">
           <thead>
             <tr class="text-xs text-gray-500 uppercase tracking-wider border-b border-gray-800">
@@ -74,34 +74,32 @@
                 </div>
               </td>
               <td class="px-5 py-4">
-                <span :class="[
-                  'text-xs font-medium px-2.5 py-1 rounded-full',
-                  key.active ? 'text-emerald-400 bg-emerald-400/10' : 'text-gray-500 bg-gray-800'
-                ]">{{ key.active ? 'Active' : 'Inactive' }}</span>
+                <button @click="toggleKey(key)" :class="[
+                  'text-xs font-medium px-2.5 py-1 rounded-full transition-colors cursor-pointer',
+                  key.active ? 'text-emerald-400 bg-emerald-400/10 hover:bg-emerald-400/20' : 'text-gray-500 bg-gray-800 hover:bg-gray-700'
+                ]">{{ key.active ? 'Active' : 'Inactive' }}</button>
               </td>
               <td class="px-5 py-4">
-                <router-link to="/settings" class="text-sm text-indigo-400 hover:text-indigo-300 transition-colors">
+                <button @click="openWebhookModal(key)" class="text-sm text-indigo-400 hover:text-indigo-300 transition-colors">
                   {{ (webhookCounts[key.key] || 0) }} webhook{{ (webhookCounts[key.key] || 0) !== 1 ? 's' : '' }}
-                </router-link>
+                </button>
               </td>
               <td class="px-5 py-4">
-                <span class="text-sm text-gray-300">{{ key.rate_limit }}/min</span>
+                <button @click="startEditRate(key)" class="text-sm text-gray-300 hover:text-indigo-400 transition-colors">
+                  {{ key.rate_limit }}/min
+                </button>
               </td>
               <td class="px-5 py-4">
                 <span class="text-sm text-gray-500">{{ formatDate(key.created_at) }}</span>
               </td>
               <td class="px-5 py-4 text-right relative">
                 <div class="flex items-center justify-end gap-1.5">
-                  <button @click="toggleKey(key)" :class="[
-                    'text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors',
-                    key.active ? 'text-amber-400 bg-amber-400/10 hover:bg-amber-400/20' : 'text-emerald-400 bg-emerald-400/10 hover:bg-emerald-400/20'
-                  ]">{{ key.active ? 'Deactivate' : 'Activate' }}</button>
                   <div class="relative">
-                    <button @click.stop="openDropdown(key)" class="p-1.5 text-gray-500 hover:text-gray-300 rounded-lg hover:bg-gray-800 transition-colors">
+                    <button @click.stop="openDropdown(key, $event)" class="p-1.5 text-gray-500 hover:text-gray-300 rounded-lg hover:bg-gray-800 transition-colors">
                       <Icon name="dots" class="w-4 h-4" />
                     </button>
                     <div v-if="openDropdownKey === key.key"
-                      class="absolute right-0 top-full mt-1 z-40 w-44 bg-gray-800 border border-gray-700 rounded-lg shadow-xl py-1">
+                      :class="['absolute right-0 z-40 w-44 bg-gray-800 border border-gray-700 rounded-lg shadow-xl py-1', dropdownAbove ? 'bottom-full mb-1' : 'top-full mt-1']">
                       <button @click="startEditDesc(key)" class="flex items-center gap-2 w-full px-3 py-2 text-xs text-gray-300 hover:bg-gray-700 text-left">
                         <Icon name="edit" class="w-3.5 h-3.5 text-gray-500" /> Edit Description
                       </button>
@@ -111,7 +109,7 @@
                       <button @click="confirmRegenerate(key)" class="flex items-center gap-2 w-full px-3 py-2 text-xs text-gray-300 hover:bg-gray-700 text-left">
                         <Icon name="refresh" class="w-3.5 h-3.5 text-gray-500" /> Regenerate
                       </button>
-                      <button @click="confirmDelete(key)" class="flex items-center gap-2 w-full px-3 py-2 text-xs text-red-400 hover:bg-gray-700 text-left">
+                      <button @click="deleteKey(key)" class="flex items-center gap-2 w-full px-3 py-2 text-xs text-red-400 hover:bg-gray-700 text-left">
                         <Icon name="trash" class="w-3.5 h-3.5" /> Delete
                       </button>
                     </div>
@@ -169,24 +167,6 @@
             {{ copiedKey === createdKey ? 'Copied!' : 'Copy to Clipboard' }}
           </button>
           <button @click="showKeyCreated = false" class="w-full px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors">Done</button>
-        </div>
-      </div>
-
-      <div v-if="showDeleteConfirm" class="fixed inset-0 z-50 flex items-center justify-center" @click.self="showDeleteConfirm = false">
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
-        <div class="relative bg-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-md mx-4">
-          <h3 class="text-lg font-semibold text-white mb-2">Delete API Key</h3>
-          <p class="text-sm text-gray-400 mb-1">Are you sure you want to delete this key?</p>
-          <code class="text-xs text-gray-300 bg-gray-800 px-2 py-1 rounded font-mono block mb-4 break-all">{{ toDelete?.key ? maskKey(toDelete.key) : '' }}</code>
-          <p class="text-xs text-red-400/80 mb-4">This action cannot be undone.</p>
-          <div class="flex items-center justify-end gap-3">
-            <button @click="showDeleteConfirm = false" class="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors">Cancel</button>
-            <button @click="handleDelete" :disabled="deleting"
-              class="px-4 py-2 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2">
-              <div v-if="deleting" class="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white"></div>
-              {{ deleting ? 'Deleting...' : 'Delete' }}
-            </button>
-          </div>
         </div>
       </div>
 
@@ -249,6 +229,44 @@
           </div>
         </div>
       </div>
+
+      <div v-if="webhookModalVisible" class="fixed inset-0 z-50 flex items-center justify-center" @click.self="closeWebhookModal">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+        <div class="relative bg-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-lg mx-4 max-h-[80vh] flex flex-col">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-white">Webhooks for {{ webhookModalKey ? maskKey(webhookModalKey) : '' }}</h3>
+            <button @click="closeWebhookModal" class="text-gray-500 hover:text-gray-300 transition-colors">
+              <Icon name="close" class="w-5 h-5" />
+            </button>
+          </div>
+          <div class="flex gap-2 mb-4">
+            <input v-model="newWebhookUrl" type="url" placeholder="https://example.com/webhook"
+              class="flex-1 bg-gray-800 text-gray-200 text-sm rounded-lg px-4 py-2.5 border border-gray-700 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20"
+              @keyup.enter="handleAddWebhook" />
+            <button @click="handleAddWebhook" :disabled="addingWebhook || !newWebhookUrl"
+              class="px-4 py-2.5 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2">
+              <Icon name="plus" class="w-4 h-4" />
+              Add
+            </button>
+          </div>
+          <div class="flex-1 overflow-y-auto space-y-2 min-h-0">
+            <div v-if="webhookModalWebhooks.length === 0" class="text-center py-8">
+              <Icon name="webhook" class="w-10 h-10 text-gray-600 mx-auto mb-3" />
+              <p class="text-xs text-gray-500">No webhooks configured for this key</p>
+            </div>
+            <div v-for="wh in webhookModalWebhooks" :key="wh.id"
+              class="flex items-center justify-between bg-gray-800/50 rounded-lg px-4 py-3 group hover:bg-gray-800 transition-colors">
+              <div class="flex items-center gap-3 min-w-0 flex-1">
+                <code class="text-xs text-gray-300 font-mono truncate">{{ wh.url }}</code>
+              </div>
+              <button @click="handleDeleteWebhook(wh.id)" :disabled="deletingWebhookId === wh.id"
+                class="ml-2 text-xs text-red-400 hover:text-red-300 hover:bg-red-400/10 px-2 py-1 rounded transition-colors shrink-0">
+                {{ deletingWebhookId === wh.id ? 'Removing...' : 'Remove' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     </teleport>
   </div>
 </template>
@@ -269,20 +287,17 @@ const statusFilters = ['All', 'Active', 'Inactive']
 const webhookCounts = ref({})
 
 const showCreateModal = ref(false)
-const showDeleteConfirm = ref(false)
 const showKeyCreated = ref(false)
 const showRegenerateConfirm = ref(false)
 const showEditDesc = ref(false)
 const showEditRate = ref(false)
 
 const creating = ref(false)
-const deleting = ref(false)
 const regenerating = ref(false)
 const savingDesc = ref(false)
 const savingRate = ref(false)
 
 const newKeyDescription = ref('')
-const toDelete = ref(null)
 const toRegenerate = ref(null)
 const editDescTarget = ref(null)
 const editDescValue = ref('')
@@ -290,6 +305,14 @@ const editRateTarget = ref(null)
 const editRateValue = ref(10)
 const createdKey = ref('')
 const copiedKey = ref('')
+const dropdownAbove = ref(false)
+
+const webhookModalVisible = ref(false)
+const webhookModalKey = ref('')
+const webhookModalWebhooks = ref([])
+const newWebhookUrl = ref('')
+const addingWebhook = ref(false)
+const deletingWebhookId = ref(null)
 
 const filteredKeys = computed(() => {
   let list = keys.value
@@ -356,25 +379,14 @@ async function handleCreateKey() {
   }
 }
 
-function confirmDelete(key) {
-  toDelete.value = key
-  showDeleteConfirm.value = true
+async function deleteKey(key) {
   openDropdownKey.value = null
-}
-
-async function handleDelete() {
-  if (!toDelete.value) return
-  deleting.value = true
   try {
-    await api.deleteKey(toDelete.value.key)
-    showDeleteConfirm.value = false
-    toDelete.value = null
+    await api.deleteKey(key.key)
     toast?.success('Key deleted', 'API key has been removed')
     await loadKeys()
   } catch (e) {
     toast?.error('Delete failed', e.message)
-  } finally {
-    deleting.value = false
   }
 }
 
@@ -414,6 +426,56 @@ async function handleRegenerate() {
     toast?.error('Regeneration failed', e.message)
   } finally {
     regenerating.value = false
+  }
+}
+
+async function openWebhookModal(key) {
+  webhookModalKey.value = key.key
+  newWebhookUrl.value = ''
+  openDropdownKey.value = null
+  webhookModalVisible.value = true
+  try {
+    const wh = await api.getWebhooks(key.key)
+    webhookModalWebhooks.value = wh
+  } catch {
+    webhookModalWebhooks.value = []
+  }
+}
+
+function closeWebhookModal() {
+  webhookModalVisible.value = false
+  webhookModalKey.value = ''
+  webhookModalWebhooks.value = []
+  newWebhookUrl.value = ''
+}
+
+async function handleAddWebhook() {
+  if (!newWebhookUrl.value || !webhookModalKey.value) return
+  addingWebhook.value = true
+  try {
+    await api.addWebhook(newWebhookUrl.value, webhookModalKey.value)
+    newWebhookUrl.value = ''
+    webhookModalWebhooks.value = await api.getWebhooks(webhookModalKey.value)
+    webhookCounts.value[webhookModalKey.value] = (webhookCounts.value[webhookModalKey.value] || 0) + 1
+    toast?.success('Webhook added')
+  } catch (e) {
+    toast?.error('Failed to add webhook', e.message)
+  } finally {
+    addingWebhook.value = false
+  }
+}
+
+async function handleDeleteWebhook(id) {
+  deletingWebhookId.value = id
+  try {
+    await api.deleteWebhook(id)
+    webhookModalWebhooks.value = webhookModalWebhooks.value.filter(w => w.id !== id)
+    webhookCounts.value[webhookModalKey.value] = (webhookCounts.value[webhookModalKey.value] || 0) - 1
+    toast?.success('Webhook removed')
+  } catch (e) {
+    toast?.error('Failed to remove webhook', e.message)
+  } finally {
+    deletingWebhookId.value = null
   }
 }
 
@@ -486,8 +548,18 @@ async function copyKey(text) {
   }
 }
 
-function openDropdown(key) {
-  openDropdownKey.value = openDropdownKey.value === key.key ? null : key.key
+function openDropdown(key, event) {
+  if (openDropdownKey.value === key.key) {
+    openDropdownKey.value = null
+    return
+  }
+  openDropdownKey.value = key.key
+  const btn = event?.currentTarget
+  if (btn) {
+    const rect = btn.getBoundingClientRect()
+    const spaceBelow = window.innerHeight - rect.bottom
+    dropdownAbove.value = spaceBelow < 180
+  }
 }
 
 function handleClickOutside(e) {

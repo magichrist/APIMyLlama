@@ -14,7 +14,7 @@ RUN apk add --no-cache dumb-init
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/ui/node_modules ./ui/node_modules
 COPY --from=builder /app/ui/dist ./ui/dist
-COPY --from=builder /app/*.js ./
+COPY --from=builder /app/APIMyLlama.js /app/api.js /app/admin-api.js /app/db.js /app/utils.js ./
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/.env.example ./
 

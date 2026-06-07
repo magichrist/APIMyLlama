@@ -123,12 +123,9 @@
               </div>
             </div>
             <div class="flex items-center gap-2 bg-gray-800 rounded-lg px-4 py-3 border border-gray-700">
-              <code class="text-sm text-indigo-300 font-mono flex-1">admin</code>
-              <button @click="copyText('admin')" class="text-gray-400 hover:text-gray-200 transition-colors" title="Copy token">
-                <Icon name="copy" class="w-4 h-4" />
-              </button>
+              <code class="text-sm text-indigo-300 font-mono flex-1">••••••••</code>
             </div>
-            <p class="text-xs text-gray-600 mt-2">Set <code class="text-gray-500 bg-gray-800 px-1 rounded">ADMIN_TOKEN</code> env var to change. Set <code class="text-gray-500 bg-gray-800 px-1 rounded">VITE_ADMIN_TOKEN</code> in the UI.</p>
+            <p class="text-xs text-gray-600 mt-2">The admin token is set via the <code class="text-gray-500 bg-gray-800 px-1 rounded">ADMIN_TOKEN</code> env var. It is <strong>not exposed</strong> through the API for security. Check the server console to view or set it.</p>
           </div>
         </div>
       </template>

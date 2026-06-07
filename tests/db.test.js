@@ -1,5 +1,4 @@
 const { expect } = require('chai');
-const path = require('path');
 const { freshRequire, cleanupTestDb, getTestDbPath } = require('./setup');
 
 describe('Database', function () {
@@ -12,7 +11,11 @@ describe('Database', function () {
     await db.initialize();
   });
 
-  afterEach(function () {
+  afterEach(async function () {
+    try {
+      if (db && db.close) await db.close();
+    } catch {}
+    db = null;
     delete process.env.API_KEYS_DB_PATH;
     cleanupTestDb();
   });
