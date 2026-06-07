@@ -1,14 +1,14 @@
 <template>
-  <div class="fixed top-4 right-4 z-[100] flex flex-col gap-3 pointer-events-none">
+  <div class="fixed top-4 left-4 right-4 sm:left-auto sm:right-4 z-[100] flex flex-col gap-3 pointer-events-none">
     <div v-for="t in toasts" :key="t.id"
-      class="pointer-events-auto flex items-start gap-3 px-4 py-3.5 rounded-2xl shadow-2xl border backdrop-blur-xl transition-all animate-toast-in max-w-sm"
+      class="pointer-events-auto flex items-start gap-3 px-4 py-3.5 rounded-2xl shadow-2xl border backdrop-blur-xl transition-all animate-toast-in sm:max-w-sm w-full"
       :class="bgClass(t.type)">
       <Icon :name="{success:'check',error:'close',info:'info',warning:'warning'}[t.type]||'info'" class="w-5 h-5 mt-0.5 shrink-0" :class="iconColor(t.type)" />
       <div class="flex-1 min-w-0">
         <p class="text-sm font-semibold text-white/90">{{ t.title }}</p>
         <p v-if="t.message" class="text-xs text-gray-400/80 mt-0.5">{{ t.message }}</p>
       </div>
-      <button @click="remove(t.id)" class="text-gray-400/70 hover:text-white/90 shrink-0 transition-all hover:scale-110 active:scale-90">
+      <button @click="remove(t.id)" class="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400/70 hover:text-white/90 shrink-0 transition-all hover:scale-110 active:scale-90">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
         </svg>

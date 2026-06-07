@@ -1,5 +1,5 @@
 <template>
-  <div class="flex-1 relative overflow-hidden bg-gray-950 flex items-center justify-center">
+  <div class="flex-1 relative overflow-hidden bg-gray-950 flex items-center justify-center min-h-screen">
     <!-- Animated gradient orbs -->
     <div class="absolute inset-0 overflow-hidden pointer-events-none">
       <div class="absolute -top-40 -left-40 w-[32rem] h-[32rem] bg-indigo-600/20 rounded-full blur-3xl animate-drift-slow" />
@@ -9,7 +9,7 @@
 
     <!-- Glassmorphism login card -->
     <div class="relative z-10 w-full max-w-md mx-4 animate-fade-up">
-      <div class="bg-white/[0.04] backdrop-blur-2xl border border-white/[0.07] rounded-2xl p-8 shadow-2xl shadow-indigo-500/5">
+      <div class="bg-white/[0.04] backdrop-blur-2xl border border-white/[0.07] rounded-2xl px-4 sm:px-8 py-8 shadow-2xl shadow-indigo-500/5">
         <!-- Branding -->
         <div class="text-center mb-8">
           <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-500/25 ring-1 ring-white/10">

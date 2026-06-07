@@ -6,8 +6,9 @@
         <span class="w-1 h-4 rounded-full bg-gradient-to-b from-indigo-400 to-violet-400"></span>
         Recent Activity
       </h2>
-      <button v-if="activities.length > 0" @click="sortDir = sortDir === 'asc' ? 'desc' : 'asc'"
-        class="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white bg-white/[0.03] hover:bg-white/[0.08] backdrop-blur-sm border border-white/[0.04] hover:border-indigo-500/30 px-3 py-1.5 rounded-lg transition-all duration-200 group">
+      <button v-if="activities.length > 0"
+        class="min-h-[44px] flex items-center gap-1.5 text-xs text-gray-400 hover:text-white bg-white/[0.03] hover:bg-white/[0.08] backdrop-blur-sm border border-white/[0.04] hover:border-indigo-500/30 px-3 py-1.5 rounded-lg transition-all duration-200 group"
+        @click="sortDir = sortDir === 'asc' ? 'desc' : 'asc'">
         <Icon :name="sortDir === 'asc' ? 'arrowUp' : 'arrowDown'" class="w-3.5 h-3.5 group-hover:text-indigo-400 transition-colors duration-200" />
         <span>{{ sortDir === 'asc' ? 'Oldest first' : 'Newest first' }}</span>
       </button>
@@ -20,8 +21,10 @@
         <thead>
           <tr class="text-xs text-gray-500 uppercase tracking-wider">
             <th class="text-left px-5 py-3 font-medium">Event</th>
-            <th class="text-left px-5 py-3 font-medium">API Key</th>
-            <th class="text-left px-5 py-3 font-medium">Status</th>
+            <!-- API Key column: hidden on mobile -->
+            <th class="text-left px-5 py-3 font-medium hidden sm:table-cell">API Key</th>
+            <!-- Status column: hidden on mobile -->
+            <th class="text-left px-5 py-3 font-medium hidden sm:table-cell">Status</th>
             <th class="text-right px-5 py-3 font-medium cursor-pointer select-none hover:text-gray-300 transition-colors duration-200" @click="sortDir = sortDir === 'asc' ? 'desc' : 'asc'">
               Time <Icon :name="sortDir === 'asc' ? 'arrowUp' : 'arrowDown'" class="w-3 h-3 inline -mt-0.5" />
             </th>
@@ -32,25 +35,27 @@
             <td class="px-5 py-3.5">
               <div class="flex items-center gap-3">
                 <!-- Icon container with gradient bg -->
-                <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500/20 to-violet-500/20 flex items-center justify-center ring-1 ring-white/[0.04]">
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500/20 to-violet-500/20 flex items-center justify-center ring-1 ring-white/[0.04] shrink-0">
                   <Icon name="message" class="w-4 h-4 text-indigo-300" />
                 </div>
                 <div>
                   <p class="text-sm font-medium text-gray-200">{{ row.event }}</p>
                   <p class="text-xs text-gray-500">{{ row.detail }}</p>
+                  <!-- Show status inline on mobile -->
+                  <span class="sm:hidden inline-block mt-1" :class="['text-xs font-medium px-2 py-0.5 rounded-full', statusClass(row.status)]">{{ row.status }}</span>
                 </div>
               </div>
             </td>
-            <td class="px-5 py-3.5">
+            <td class="px-5 py-3.5 hidden sm:table-cell">
               <code class="text-xs text-gray-400 bg-white/[0.04] backdrop-blur-sm border border-white/[0.06] px-2.5 py-1 rounded-lg">{{ row.key }}</code>
             </td>
-            <td class="px-5 py-3.5">
+            <td class="px-5 py-3.5 hidden sm:table-cell">
               <!-- Status badge with subtle glow -->
               <span :class="['text-xs font-medium px-3 py-1 rounded-full shadow-sm', statusClass(row.status)]">
                 {{ row.status }}
               </span>
             </td>
-            <td class="px-5 py-3.5 text-right text-sm text-gray-500">{{ row.time }}</td>
+            <td class="px-5 py-3.5 text-right text-sm text-gray-500 whitespace-nowrap">{{ row.time }}</td>
           </tr>
         </tbody>
       </table>

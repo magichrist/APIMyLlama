@@ -1,31 +1,49 @@
 <template>
-  <div class="flex-1 flex flex-col overflow-hidden">
-    <Header title="API Keys" />
-    <main class="flex-1 overflow-y-auto p-6">
+  <div class="flex-1 flex flex-col overflow-hidden min-w-0">
+    <Header title="API Keys" @toggle-sidebar="toggleSidebar" />
+    <main class="flex-1 overflow-y-auto p-4 sm:p-6">
       <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-3 w-full sm:w-auto">
           <p class="text-sm text-gray-400/80">Manage your API keys for accessing the Ollama proxy.</p>
-          <button @click="loadKeys" class="p-1.5 text-gray-500 hover:text-indigo-400 rounded-lg hover:bg-white/[0.06] transition-all" title="Refresh">
+          <button @click="loadKeys" class="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-500 hover:text-indigo-400 rounded-lg hover:bg-white/[0.06] transition-all" title="Refresh">
             <Icon name="refresh" class="w-4 h-4" />
           </button>
         </div>
-        <button @click="showCreateModal = true" class="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-400 hover:to-violet-500 text-white text-sm font-medium rounded-xl shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all">
+        <button @click="showCreateModal = true" class="w-full sm:w-auto min-h-[44px] flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-400 hover:to-violet-500 text-white text-sm font-medium rounded-xl shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all">
           <Icon name="plus" class="w-4 h-4" />
           Create Key
         </button>
       </div>
 
-      <div class="flex items-center gap-2 mb-4">
-        <div class="relative flex-1 max-w-xs">
+      <!-- Summary bar -->
+      <div class="flex items-center gap-3 mb-4 text-xs">
+        <span class="text-gray-300 font-medium">
+          <span class="text-emerald-400">{{ activeCount }}</span>
+          <span class="text-gray-500 ml-1">Active</span>
+        </span>
+        <span class="text-gray-600">·</span>
+        <span class="text-gray-300 font-medium">
+          <span class="text-amber-400">{{ inactiveCount }}</span>
+          <span class="text-gray-500 ml-1">Inactive</span>
+        </span>
+        <span class="text-gray-600">·</span>
+        <span class="text-gray-300 font-medium">
+          <span class="text-white">{{ totalCount }}</span>
+          <span class="text-gray-500 ml-1">Total</span>
+        </span>
+      </div>
+
+      <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2 mb-4">
+        <div class="relative w-full sm:max-w-xs">
           <Icon name="search" class="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" />
           <input v-model="searchQuery" type="text" placeholder="Filter keys..."
             class="w-full bg-white/[0.04] text-gray-200 text-sm rounded-xl pl-9 pr-4 py-2.5 border border-white/[0.08] backdrop-blur-xl placeholder:text-gray-500 focus:outline-none focus:border-indigo-500/40 focus:ring-2 focus:ring-indigo-500/10 transition-all" />
         </div>
-        <div class="flex items-center gap-1 bg-white/[0.03] border border-white/[0.06] rounded-xl p-1 backdrop-blur-xl">
+        <div class="flex items-center gap-1 bg-white/[0.03] border border-white/[0.06] rounded-xl p-1 backdrop-blur-xl overflow-x-auto w-full sm:w-auto">
           <button v-for="tab in statusFilters" :key="tab"
             @click="activeFilter = tab"
             :class="[
-              'px-3 py-1.5 text-xs font-medium rounded-lg transition-all',
+              'min-h-[44px] px-3 py-1.5 text-xs font-medium rounded-lg transition-all whitespace-nowrap',
               activeFilter === tab ? 'bg-gradient-to-r from-indigo-500/20 to-violet-500/20 text-indigo-300 shadow-sm' : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.04]'
             ]">{{ tab }}</button>
         </div>
@@ -41,87 +59,145 @@
         </div>
         <p v-if="searchQuery || activeFilter !== 'All'" class="text-gray-400/80 text-sm mb-4">No keys match your filter.</p>
         <p v-else class="text-gray-400/80 text-sm mb-4">No API keys yet. Create your first key to get started.</p>
-        <button @click="showCreateModal = true" class="px-5 py-2.5 bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-400 hover:to-violet-500 text-white text-sm font-medium rounded-xl transition-all shadow-lg shadow-indigo-500/25">Create API Key</button>
+        <button @click="showCreateModal = true" class="min-h-[44px] px-5 py-2.5 bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-400 hover:to-violet-500 text-white text-sm font-medium rounded-xl transition-all shadow-lg shadow-indigo-500/25">Create API Key</button>
       </div>
 
-      <div v-else class="bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] rounded-xl overflow-visible shadow-lg">
-        <table class="w-full">
-          <thead>
-            <tr class="text-xs text-gray-400 uppercase tracking-wider border-b border-white/[0.06] bg-white/[0.02]">
-              <th class="text-left px-5 py-3.5 font-semibold">Key</th>
-              <th class="text-left px-5 py-3.5 font-semibold">Description</th>
-              <th class="text-left px-5 py-3.5 font-semibold">Status</th>
-              <th class="text-left px-5 py-3.5 font-semibold">Webhooks</th>
-              <th class="text-left px-5 py-3.5 font-semibold">Rate Limit</th>
-              <th class="text-left px-5 py-3.5 font-semibold">Created</th>
-              <th class="text-right px-5 py-3.5 font-semibold">Actions</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-white/[0.04]">
-            <tr v-for="key in filteredKeys" :key="key.key" class="hover:bg-white/[0.04] transition-colors">
-              <td class="px-5 py-4">
-                <div class="flex items-center gap-2">
-                  <code class="text-xs text-gray-300 bg-white/[0.06] px-2 py-1 rounded-lg font-mono backdrop-blur-xl border border-white/[0.04]">{{ maskKey(key.key) }}</code>
-                  <button @click="copyFullKey(key.key)" class="text-gray-500 hover:text-indigo-400 transition-all" title="Copy full key">
-                    <Icon name="copy" class="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </td>
-              <td class="px-5 py-4">
-                <div class="flex items-center gap-2">
-                  <span class="text-sm text-gray-300">{{ key.description || '—' }}</span>
-                  <button @click="startEditDesc(key)" class="text-gray-500 hover:text-indigo-400 transition-all" title="Edit description">
-                    <Icon name="edit" class="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </td>
-              <td class="px-5 py-4">
-                <button @click="toggleKey(key)" :class="[
-                  'text-xs font-medium px-2.5 py-1 rounded-full transition-all cursor-pointer',
+      <!-- Desktop table + Mobile cards -->
+      <div v-else>
+        <!-- Desktop: table -->
+        <div class="hidden lg:block bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] rounded-xl overflow-visible shadow-lg">
+          <table class="w-full">
+            <thead>
+              <tr class="text-xs text-gray-400 uppercase tracking-wider border-b border-white/[0.06] bg-white/[0.02]">
+                <th class="text-left px-5 py-3.5 font-semibold">Key</th>
+                <th class="text-left px-5 py-3.5 font-semibold">Description</th>
+                <th class="text-left px-5 py-3.5 font-semibold">Status</th>
+                <th class="text-left px-5 py-3.5 font-semibold">Webhooks</th>
+                <th class="text-left px-5 py-3.5 font-semibold">Rate Limit</th>
+                <th class="text-left px-5 py-3.5 font-semibold">Created</th>
+                <th class="text-right px-5 py-3.5 font-semibold">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-white/[0.04]">
+              <tr v-for="key in filteredKeys" :key="key.key" class="hover:bg-white/[0.04] transition-colors">
+                <td class="px-5 py-4">
+                  <div class="flex items-center gap-2">
+                    <code class="text-xs text-gray-300 bg-white/[0.06] px-2 py-1 rounded-lg font-mono backdrop-blur-xl border border-white/[0.04]">{{ maskKey(key.key) }}</code>
+                    <button @click="copyFullKey(key.key)" class="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-500 hover:text-indigo-400 transition-all" title="Copy full key">
+                      <Icon name="copy" class="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </td>
+                <td class="px-5 py-4">
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm text-gray-300">{{ key.description || '—' }}</span>
+                    <button @click="startEditDesc(key)" class="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-500 hover:text-indigo-400 transition-all" title="Edit description">
+                      <Icon name="edit" class="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </td>
+                <td class="px-5 py-4">
+                  <button @click="toggleKey(key)" :class="[
+                  'min-h-[44px] text-xs font-medium px-2.5 py-1 rounded-full transition-all cursor-pointer',
                   key.active ? 'text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 shadow-sm shadow-emerald-500/5' : 'text-gray-400 bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.08]'
                 ]">{{ key.active ? 'Active' : 'Inactive' }}</button>
-              </td>
-              <td class="px-5 py-4">
-                <button @click="openWebhookModal(key)" class="text-sm text-indigo-400 hover:text-indigo-300 transition-colors">
-                  {{ (webhookCounts[key.key] || 0) }} webhook{{ (webhookCounts[key.key] || 0) !== 1 ? 's' : '' }}
-                </button>
-              </td>
-              <td class="px-5 py-4">
-                <button @click="startEditRate(key)" class="text-sm text-gray-300 hover:text-indigo-400 transition-colors">
-                  {{ key.rate_limit }}/min
-                </button>
-              </td>
-              <td class="px-5 py-4">
-                <span class="text-sm text-gray-500/80">{{ formatDate(key.created_at) }}</span>
-              </td>
-              <td class="px-5 py-4 text-right relative">
-                <div class="flex items-center justify-end gap-1.5">
-                  <div class="relative">
-                    <button @click.stop="openDropdown(key, $event)" class="p-1.5 text-gray-500 hover:text-gray-300 rounded-lg hover:bg-white/[0.06] transition-all">
-                      <Icon name="dots" class="w-4 h-4" />
-                    </button>
-                    <div v-if="openDropdownKey === key.key"
-                      :class="['absolute right-0 z-40 w-44 bg-gray-800/90 backdrop-blur-xl border border-white/[0.08] rounded-xl shadow-2xl py-1 overflow-hidden', dropdownAbove ? 'bottom-full mb-1' : 'top-full mt-1']">
-                      <button @click="startEditDesc(key)" class="flex items-center gap-2 w-full px-3 py-2 text-xs text-gray-300 hover:bg-white/[0.06] text-left transition-colors">
-                        <Icon name="edit" class="w-3.5 h-3.5 text-gray-500" /> Edit Description
+                </td>
+                <td class="px-5 py-4">
+                  <button @click="openWebhookModal(key)" class="min-h-[44px] text-sm text-indigo-400 hover:text-indigo-300 transition-colors">
+                    {{ (webhookCounts[key.key] || 0) }} webhook{{ (webhookCounts[key.key] || 0) !== 1 ? 's' : '' }}
+                  </button>
+                </td>
+                <td class="px-5 py-4">
+                  <button @click="startEditRate(key)" class="min-h-[44px] text-sm text-gray-300 hover:text-indigo-400 transition-colors">
+                    {{ key.rate_limit }}/min
+                  </button>
+                </td>
+                <td class="px-5 py-4">
+                  <span class="text-sm text-gray-500/80">{{ formatDate(key.created_at) }}</span>
+                </td>
+                <td class="px-5 py-4 text-right relative">
+                  <div class="flex items-center justify-end gap-1.5">
+                    <div class="relative">
+                      <button @click.stop="openDropdown(key, $event)" class="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-500 hover:text-gray-300 rounded-lg hover:bg-white/[0.06] transition-all">
+                        <Icon name="dots" class="w-4 h-4" />
                       </button>
-                      <button @click="startEditRate(key)" class="flex items-center gap-2 w-full px-3 py-2 text-xs text-gray-300 hover:bg-white/[0.06] text-left transition-colors">
-                        <Icon name="bolt" class="w-3.5 h-3.5 text-gray-500" /> Edit Rate Limit
-                      </button>
-                      <button @click="confirmRegenerate(key)" class="flex items-center gap-2 w-full px-3 py-2 text-xs text-gray-300 hover:bg-white/[0.06] text-left transition-colors">
-                        <Icon name="refresh" class="w-3.5 h-3.5 text-gray-500" /> Regenerate
-                      </button>
-                      <div class="border-t border-white/[0.06] my-1"></div>
-                      <button @click="deleteKey(key)" class="flex items-center gap-2 w-full px-3 py-2 text-xs text-red-400 hover:bg-white/[0.06] text-left transition-colors">
-                        <Icon name="trash" class="w-3.5 h-3.5" /> Delete
-                      </button>
+                      <div v-if="openDropdownKey === key.key"
+                        :class="['absolute right-0 z-40 w-44 bg-gray-800/90 backdrop-blur-xl border border-white/[0.08] rounded-xl shadow-2xl py-1 overflow-hidden', dropdownAbove ? 'bottom-full mb-1' : 'top-full mt-1']">
+                        <button @click="startEditDesc(key)" class="min-h-[44px] flex items-center gap-2 w-full px-3 py-2 text-xs text-gray-300 hover:bg-white/[0.06] text-left transition-colors">
+                          <Icon name="edit" class="w-3.5 h-3.5 text-gray-500" /> Edit Description
+                        </button>
+                        <button @click="startEditRate(key)" class="min-h-[44px] flex items-center gap-2 w-full px-3 py-2 text-xs text-gray-300 hover:bg-white/[0.06] text-left transition-colors">
+                          <Icon name="bolt" class="w-3.5 h-3.5 text-gray-500" /> Edit Rate Limit
+                        </button>
+                        <button @click="confirmRegenerate(key)" class="min-h-[44px] flex items-center gap-2 w-full px-3 py-2 text-xs text-gray-300 hover:bg-white/[0.06] text-left transition-colors">
+                          <Icon name="refresh" class="w-3.5 h-3.5 text-gray-500" /> Regenerate
+                        </button>
+                        <div class="border-t border-white/[0.06] my-1"></div>
+                        <button @click="deleteKey(key)" class="min-h-[44px] flex items-center gap-2 w-full px-3 py-2 text-xs text-red-400 hover:bg-white/[0.06] text-left transition-colors">
+                          <Icon name="trash" class="w-3.5 h-3.5" /> Delete
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Mobile: cards -->
+        <div class="lg:hidden space-y-3">
+        <div v-for="key in filteredKeys" :key="key.key"
+          class="bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] rounded-xl p-4 shadow-lg">
+          <div class="flex items-start justify-between mb-3">
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 mb-1">
+                <code class="text-xs text-gray-300 bg-white/[0.06] px-2 py-1 rounded-lg font-mono backdrop-blur-xl border border-white/[0.04]">{{ maskKey(key.key) }}</code>
+                <button @click="copyFullKey(key.key)" class="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-500 hover:text-indigo-400 transition-all shrink-0" title="Copy full key">
+                  <Icon name="copy" class="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <p class="text-sm text-gray-300 truncate">{{ key.description || 'No description' }}</p>
+            </div>
+            <div class="relative shrink-0">
+              <button @click.stop="openDropdown(key, $event)" class="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-500 hover:text-gray-300 rounded-lg hover:bg-white/[0.06] transition-all">
+                <Icon name="dots" class="w-4 h-4" />
+              </button>
+              <div v-if="openDropdownKey === key.key"
+                :class="['absolute right-0 z-40 w-44 bg-gray-800/90 backdrop-blur-xl border border-white/[0.08] rounded-xl shadow-2xl py-1 overflow-hidden', dropdownAbove ? 'bottom-full mb-1' : 'top-full mt-1']">
+                <button @click="startEditDesc(key)" class="min-h-[44px] flex items-center gap-2 w-full px-3 py-2 text-xs text-gray-300 hover:bg-white/[0.06] text-left transition-colors">
+                  <Icon name="edit" class="w-3.5 h-3.5 text-gray-500" /> Edit Description
+                </button>
+                <button @click="startEditRate(key)" class="min-h-[44px] flex items-center gap-2 w-full px-3 py-2 text-xs text-gray-300 hover:bg-white/[0.06] text-left transition-colors">
+                  <Icon name="bolt" class="w-3.5 h-3.5 text-gray-500" /> Edit Rate Limit
+                </button>
+                <button @click="confirmRegenerate(key)" class="min-h-[44px] flex items-center gap-2 w-full px-3 py-2 text-xs text-gray-300 hover:bg-white/[0.06] text-left transition-colors">
+                  <Icon name="refresh" class="w-3.5 h-3.5 text-gray-500" /> Regenerate
+                </button>
+                <div class="border-t border-white/[0.06] my-1"></div>
+                <button @click="deleteKey(key)" class="min-h-[44px] flex items-center gap-2 w-full px-3 py-2 text-xs text-red-400 hover:bg-white/[0.06] text-left transition-colors">
+                  <Icon name="trash" class="w-3.5 h-3.5" /> Delete
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="flex flex-wrap items-center gap-2 mb-3">
+            <button @click="toggleKey(key)" :class="[
+              'min-h-[44px] text-xs font-medium px-2.5 py-1 rounded-full transition-all cursor-pointer',
+              key.active ? 'text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 shadow-sm shadow-emerald-500/5' : 'text-gray-400 bg-white/[0.04] border border-white/[0.06]'
+            ]">{{ key.active ? 'Active' : 'Inactive' }}</button>
+            <button @click="openWebhookModal(key)" class="min-h-[44px] text-xs text-indigo-400 hover:text-indigo-300 transition-colors px-2.5 py-1 rounded-lg hover:bg-white/[0.04]">
+              {{ (webhookCounts[key.key] || 0) }} wh
+            </button>
+            <button @click="startEditRate(key)" class="min-h-[44px] text-xs text-gray-300 hover:text-indigo-400 transition-colors px-2.5 py-1 rounded-lg hover:bg-white/[0.04]">
+              {{ key.rate_limit }}/min
+            </button>
+          </div>
+          <div class="flex items-center justify-between pt-2 border-t border-white/[0.04]">
+            <span class="text-xs text-gray-500/80">Created {{ formatDate(key.created_at) }}</span>
+          </div>
+        </div>
+      </div>
       </div>
 
       <div class="mt-4 text-xs text-gray-500/70">
@@ -141,9 +217,9 @@
               @keyup.enter="handleCreateKey" />
           </div>
           <div class="flex items-center justify-end gap-3">
-            <button @click="showCreateModal = false" class="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors">Cancel</button>
+            <button @click="showCreateModal = false" class="min-h-[44px] px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors">Cancel</button>
             <button @click="handleCreateKey" :disabled="creating"
-              class="px-5 py-2.5 bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-400 hover:to-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-indigo-500/20">
+              class="min-h-[44px] px-5 py-2.5 bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-400 hover:to-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-indigo-500/20">
               <div v-if="creating" class="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white"></div>
               {{ creating ? 'Creating...' : 'Generate' }}
             </button>
@@ -166,10 +242,10 @@
           <div class="bg-white/[0.04] backdrop-blur-xl border border-white/[0.08] rounded-xl p-4 mb-4">
             <code class="text-sm text-indigo-300 font-mono break-all select-all">{{ createdKey }}</code>
           </div>
-          <button @click="copyKey(createdKey)" class="w-full px-4 py-2.5 bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-400 hover:to-violet-500 text-white text-sm font-medium rounded-xl transition-all shadow-lg shadow-indigo-500/20 mb-2">
+          <button @click="copyKey(createdKey)" class="min-h-[44px] w-full px-4 py-2.5 bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-400 hover:to-violet-500 text-white text-sm font-medium rounded-xl transition-all shadow-lg shadow-indigo-500/20 mb-2">
             {{ copiedKey === createdKey ? 'Copied!' : 'Copy to Clipboard' }}
           </button>
-          <button @click="showKeyCreated = false" class="w-full px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors">Done</button>
+          <button @click="showKeyCreated = false" class="min-h-[44px] w-full px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors">Done</button>
         </div>
       </div>
 
@@ -181,9 +257,9 @@
           <code class="text-xs text-gray-300 bg-white/[0.06] px-2 py-1 rounded-lg font-mono block mb-2 break-all border border-white/[0.04] backdrop-blur-xl">{{ toRegenerate?.key ? maskKey(toRegenerate.key) : '' }}</code>
           <p class="text-xs text-amber-400/80 mb-4">Any services using the old key will need to be updated.</p>
           <div class="flex items-center justify-end gap-3">
-            <button @click="showRegenerateConfirm = false" class="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors">Cancel</button>
+            <button @click="showRegenerateConfirm = false" class="min-h-[44px] px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors">Cancel</button>
             <button @click="handleRegenerate" :disabled="regenerating"
-              class="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-amber-500/20">
+              class="min-h-[44px] px-5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-amber-500/20">
               <div v-if="regenerating" class="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white"></div>
               {{ regenerating ? 'Regenerating...' : 'Regenerate' }}
             </button>
@@ -202,9 +278,9 @@
               @keyup.enter="handleEditDesc" />
           </div>
           <div class="flex items-center justify-end gap-3">
-            <button @click="showEditDesc = false" class="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors">Cancel</button>
+            <button @click="showEditDesc = false" class="min-h-[44px] px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors">Cancel</button>
             <button @click="handleEditDesc" :disabled="savingDesc"
-              class="px-5 py-2.5 bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-400 hover:to-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-indigo-500/20">
+              class="min-h-[44px] px-5 py-2.5 bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-400 hover:to-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-indigo-500/20">
               <div v-if="savingDesc" class="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white"></div>
               {{ savingDesc ? 'Saving...' : 'Save' }}
             </button>
@@ -223,9 +299,9 @@
               @keyup.enter="handleEditRate" />
           </div>
           <div class="flex items-center justify-end gap-3">
-            <button @click="showEditRate = false" class="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors">Cancel</button>
+            <button @click="showEditRate = false" class="min-h-[44px] px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors">Cancel</button>
             <button @click="handleEditRate" :disabled="savingRate"
-              class="px-5 py-2.5 bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-400 hover:to-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-indigo-500/20">
+              class="min-h-[44px] px-5 py-2.5 bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-400 hover:to-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-indigo-500/20">
               <div v-if="savingRate" class="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white"></div>
               {{ savingRate ? 'Saving...' : 'Save' }}
             </button>
@@ -238,7 +314,7 @@
         <div class="relative bg-gray-900/80 backdrop-blur-2xl border border-white/[0.08] rounded-2xl p-6 w-full max-w-lg mx-4 max-h-[80vh] flex flex-col shadow-2xl shadow-indigo-500/5">
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-lg font-semibold bg-gradient-to-r from-indigo-300 to-violet-300 bg-clip-text text-transparent">Webhooks for {{ webhookModalKey ? maskKey(webhookModalKey) : '' }}</h3>
-            <button @click="closeWebhookModal" class="text-gray-500 hover:text-gray-300 transition-colors">
+            <button @click="closeWebhookModal" class="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-500 hover:text-gray-300 transition-colors">
               <Icon name="close" class="w-5 h-5" />
             </button>
           </div>
@@ -247,7 +323,7 @@
               class="flex-1 bg-white/[0.04] text-gray-200 text-sm rounded-xl px-4 py-2.5 border border-white/[0.08] backdrop-blur-xl placeholder:text-gray-500 focus:outline-none focus:border-indigo-500/40 focus:ring-2 focus:ring-indigo-500/10 transition-all"
               @keyup.enter="handleAddWebhook" />
             <button @click="handleAddWebhook" :disabled="addingWebhook || !newWebhookUrl"
-              class="px-4 py-2.5 bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-400 hover:to-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-indigo-500/20">
+              class="min-h-[44px] px-4 py-2.5 bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-400 hover:to-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-indigo-500/20">
               <Icon name="plus" class="w-4 h-4" />
               Add
             </button>
@@ -265,7 +341,7 @@
                 <code class="text-xs text-gray-300 font-mono truncate">{{ wh.url }}</code>
               </div>
               <button @click="handleDeleteWebhook(wh.id)" :disabled="deletingWebhookId === wh.id"
-                class="ml-2 text-xs text-red-400 hover:text-red-300 hover:bg-red-400/10 px-2 py-1 rounded-lg transition-colors shrink-0">
+                class="min-h-[44px] ml-2 text-xs text-red-400 hover:text-red-300 hover:bg-red-400/10 px-2 py-1 rounded-lg transition-colors shrink-0">
                 {{ deletingWebhookId === wh.id ? 'Removing...' : 'Remove' }}
               </button>
             </div>
@@ -281,7 +357,9 @@ import { ref, computed, inject, onMounted, onUnmounted } from 'vue'
 import { api } from '../api.js'
 import Header from '../components/Header.vue'
 import Icon from '../components/Icon.vue'
+import { useKeyboardShortcut } from '../composables/useKeyboardShortcut.js'
 
+const toggleSidebar = inject('toggleSidebar')
 const toast = inject('toast')
 const loading = ref(true)
 const keys = ref([])
@@ -330,6 +408,12 @@ const filteredKeys = computed(() => {
   )
   return list
 })
+
+const activeCount = computed(() => keys.value.filter(k => k.active).length)
+const inactiveCount = computed(() => keys.value.filter(k => !k.active).length)
+const totalCount = computed(() => keys.value.length)
+
+useKeyboardShortcut('r', loadKeys)
 
 function maskKey(key) {
   if (!key) return ''

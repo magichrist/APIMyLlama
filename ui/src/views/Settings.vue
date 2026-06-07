@@ -1,12 +1,13 @@
 <template>
-  <div class="flex-1 flex flex-col overflow-hidden">
-    <Header title="Settings" />
-    <main class="flex-1 overflow-y-auto p-6">
-      <div class="flex items-center gap-1 bg-white/[0.03] border border-white/[0.06] rounded-xl p-1 mb-6 inline-flex backdrop-blur-xl">
+  <div class="flex-1 flex flex-col overflow-hidden min-w-0">
+    <Header title="Settings" @toggle-sidebar="toggleSidebar" />
+    <main class="flex-1 overflow-y-auto p-4 sm:p-6">
+      <!-- Tab bar: scrollable horizontally on mobile -->
+      <div class="flex overflow-x-auto gap-1 bg-white/[0.03] border border-white/[0.06] rounded-xl p-1 mb-6 backdrop-blur-xl">
         <button v-for="tab in tabs" :key="tab.id"
           @click="activeTab = tab.id"
           :class="[
-            'flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all',
+            'min-h-[44px] flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all whitespace-nowrap shrink-0',
             activeTab === tab.id ? 'bg-gradient-to-r from-indigo-500/20 to-violet-500/20 text-indigo-300 shadow-sm' : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.04]'
           ]">
           <Icon :name="tab.icon" class="w-4 h-4" />
@@ -28,7 +29,7 @@
                 <div class="flex gap-2">
                   <input :value="config.ollamaUrl" type="text" readonly
                     class="flex-1 bg-white/[0.04] text-gray-300 text-sm rounded-xl px-4 py-2.5 border border-white/[0.08] backdrop-blur-xl" />
-                  <button @click="copyText(config.ollamaUrl)" class="px-3 py-2.5 text-gray-400 hover:text-indigo-400 bg-white/[0.04] rounded-xl border border-white/[0.08] backdrop-blur-xl transition-all hover:bg-white/[0.08] hover:border-indigo-500/30" title="Copy URL">
+                  <button @click="copyText(config.ollamaUrl)" class="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-indigo-400 bg-white/[0.04] rounded-xl border border-white/[0.08] backdrop-blur-xl transition-all hover:bg-white/[0.08] hover:border-indigo-500/30" title="Copy URL">
                     <Icon name="copy" class="w-4 h-4" />
                   </button>
                 </div>
@@ -60,7 +61,7 @@
                 </select>
               </div>
               <button @click="handleAddWebhook" :disabled="addingWebhook || !newWebhookKey"
-                class="shrink-0 px-5 py-2.5 bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-400 hover:to-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-xl transition-all flex items-center gap-2 self-start shadow-lg shadow-indigo-500/20">
+                class="min-h-[44px] shrink-0 px-5 py-2.5 bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-400 hover:to-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-xl transition-all flex items-center gap-2 self-start shadow-lg shadow-indigo-500/20">
                 <Icon v-if="!addingWebhook" name="plus" class="w-4 h-4" />
                 <div v-else class="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white"></div>
                 {{ addingWebhook ? 'Adding...' : 'Add Webhook' }}
@@ -89,7 +90,7 @@
                   </div>
                 </div>
                 <button @click="confirmDeleteWebhook(wh)"
-                  class="ml-2 text-xs text-red-400 hover:text-red-300 hover:bg-red-400/10 px-3 py-1.5 rounded-lg transition-all opacity-0 group-hover:opacity-100">
+                  class="min-h-[44px] ml-2 text-xs text-red-400 hover:text-red-300 hover:bg-red-400/10 px-3 py-1.5 rounded-lg transition-all opacity-0 group-hover:opacity-100">
                   Remove
                 </button>
               </div>
@@ -103,9 +104,9 @@
               <p class="text-sm text-gray-400 mb-4">Are you sure you want to remove this webhook?</p>
               <code class="text-xs text-gray-300 bg-white/[0.04] px-3 py-1.5 rounded-lg font-mono block mb-4 break-all border border-white/[0.06] backdrop-blur-xl">{{ toDeleteWebhook?.url }}</code>
               <div class="flex items-center justify-end gap-3">
-                <button @click="showDeleteWebhookConfirm = false" class="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors">Cancel</button>
+                <button @click="showDeleteWebhookConfirm = false" class="min-h-[44px] px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors">Cancel</button>
                 <button @click="handleDeleteWebhook" :disabled="deletingWebhook"
-                  class="px-5 py-2.5 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-400 hover:to-rose-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-xl transition-all shadow-lg shadow-red-500/20">
+                  class="min-h-[44px] px-5 py-2.5 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-400 hover:to-rose-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-xl transition-all shadow-lg shadow-red-500/20">
                   {{ deletingWebhook ? 'Removing...' : 'Remove' }}
                 </button>
               </div>
@@ -140,7 +141,9 @@ import { ref, inject, onMounted } from 'vue'
 import { api } from '../api.js'
 import Header from '../components/Header.vue'
 import Icon from '../components/Icon.vue'
+import { useKeyboardShortcut } from '../composables/useKeyboardShortcut.js'
 
+const toggleSidebar = inject('toggleSidebar')
 const toast = inject('toast')
 const loading = ref(true)
 const activeTab = ref('server')
@@ -244,5 +247,6 @@ async function copyText(text) {
   }
 }
 
+useKeyboardShortcut('r', loadSettings)
 onMounted(loadSettings)
 </script>
