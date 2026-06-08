@@ -38,6 +38,7 @@ class Database {
       model TEXT,
       timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`);
+    await this.run('CREATE INDEX IF NOT EXISTS idx_apiUsage_key ON apiUsage(key)');
 
     await this.run(`CREATE TABLE IF NOT EXISTS webhooks (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

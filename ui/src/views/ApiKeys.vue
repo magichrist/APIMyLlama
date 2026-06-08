@@ -74,6 +74,7 @@
                 <th class="text-left px-5 py-3.5 font-semibold">Status</th>
                 <th class="text-left px-5 py-3.5 font-semibold">Webhooks</th>
                 <th class="text-left px-5 py-3.5 font-semibold">Rate Limit</th>
+                <th class="text-left px-5 py-3.5 font-semibold">Used</th>
                 <th class="text-left px-5 py-3.5 font-semibold">Created</th>
                 <th class="text-right px-5 py-3.5 font-semibold">Actions</th>
               </tr>
@@ -111,6 +112,9 @@
                   <button @click="startEditRate(key)" class="min-h-[44px] text-sm text-gray-300 hover:text-indigo-400 transition-colors">
                     {{ key.rate_limit }}/min
                   </button>
+                </td>
+                <td class="px-5 py-4">
+                  <span class="text-sm text-gray-500/80">{{ key.usage_count }}</span>
                 </td>
                 <td class="px-5 py-4">
                   <span class="text-sm text-gray-500/80">{{ formatDate(key.created_at) }}</span>
@@ -194,6 +198,9 @@
             </button>
           </div>
           <div class="flex items-center justify-between pt-2 border-t border-white/[0.04]">
+            <span class="text-xs text-gray-500/80">
+              Used {{ key.usage_count }} time{{ key.usage_count !== 1 ? 's' : '' }}
+            </span>
             <span class="text-xs text-gray-500/80">Created {{ formatDate(key.created_at) }}</span>
           </div>
         </div>

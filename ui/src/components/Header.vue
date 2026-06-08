@@ -16,18 +16,6 @@
     </div>
 
     <div class="flex items-center gap-2 sm:gap-3">
-      <!-- Auto-refresh toggle -->
-      <button @click="health.toggleAutoRefresh()"
-        class="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-500 hover:text-indigo-400 rounded-xl hover:bg-white/[0.06] transition-all relative"
-        :title="health.autoRefresh.value ? 'Auto-refresh on' : 'Auto-refresh off'"
-      >
-        <Icon name="refresh" class="w-4 h-4" :class="{'animate-spin text-indigo-400': health.refreshing.value}" />
-        <span v-if="health.autoRefresh.value"
-          class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-        <span v-if="health.autoRefresh.value"
-          class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500" />
-      </button>
-
       <!-- Health dot + status (hidden on xs screens) -->
       <div class="hidden sm:flex items-center gap-2">
         <div class="relative w-2 h-2">
@@ -48,10 +36,10 @@
       <span class="hidden md:block text-xs text-gray-600">Updated: {{ health.lastUpdated.value }}</span>
 
       <!-- Manual Refresh button -->
-      <button @click="health.refresh()" :disabled="health.refreshing.value"
+      <button @click="health.refresh()" :disabled="health.refreshing.value || health.onCooldown.value"
         class="min-h-[44px] flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-400 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] backdrop-blur-xl border border-white/[0.06] hover:border-indigo-500/30 rounded-lg transition-all duration-200 disabled:opacity-50">
-        <Icon :class="['w-3.5 h-3.5', health.refreshing.value && 'animate-spin']" name="refresh" />
-        {{ health.refreshing.value ? '' : 'Refresh' }}
+        <Icon :class="['w-3.5 h-3.5', (health.refreshing.value || health.onCooldown.value) && 'animate-spin']" name="refresh" />
+        {{ health.refreshing.value ? '' : health.onCooldown.value ? 'Wait...' : 'Refresh' }}
         <span class="text-[10px] text-gray-600 ml-0.5 hidden sm:inline">(R)</span>
       </button>
     </div>

@@ -5,3 +5,4 @@ apiKeys.db-wal
 tests/test-apiKeys.db*
 *.conf
 .env
+.playwright-mcp/

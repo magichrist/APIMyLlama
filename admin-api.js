@@ -125,7 +125,12 @@ function setupAdminRoutes(app) {
 
   app.get('/v1/admin/keys', async (req, res) => {
     try {
-      const rows = await db.all('SELECT * FROM apiKeys ORDER BY created_at DESC');
+      const rows = await db.all(`
+        SELECT k.*, COALESCE(u.usage_count, 0) as usage_count
+        FROM apiKeys k
+        LEFT JOIN (SELECT key, COUNT(*) as usage_count FROM apiUsage GROUP BY key) u ON k.key = u.key
+        ORDER BY k.created_at DESC
+      `);
       res.json(rows);
     } catch (err) {
       console.error('Admin API error:', err.message);

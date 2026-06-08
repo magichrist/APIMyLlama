@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { api } from '../api.js'
 
 const health = ref({ status: 'degraded', ollama: 'unreachable', serverStart: '' })
@@ -6,6 +6,9 @@ const lastUpdated = ref('')
 const refreshing = ref(false)
 const autoRefresh = ref(true)
 const fetchLatency = ref(null)
+const cooldown = ref(false)
+
+const onCooldown = computed(() => cooldown.value)
 
 function setHealthData(data) {
   health.value = data
@@ -21,6 +24,7 @@ function toggleAutoRefresh() {
 }
 
 async function refresh() {
+  if (cooldown.value) return
   refreshing.value = true
   try {
     const t0 = performance.now()
@@ -32,9 +36,11 @@ async function refresh() {
     health.value = { status: 'unreachable', ollama: 'unreachable', serverStart: '' }
   } finally {
     refreshing.value = false
+    cooldown.value = true
+    setTimeout(() => { cooldown.value = false }, 5000)
   }
 }
 
 export function useServerHealth() {
-  return { health, lastUpdated, refreshing, autoRefresh, fetchLatency, setHealthData, setLatency, toggleAutoRefresh, refresh }
+  return { health, lastUpdated, refreshing, autoRefresh, fetchLatency, onCooldown, setHealthData, setLatency, toggleAutoRefresh, refresh }
 }

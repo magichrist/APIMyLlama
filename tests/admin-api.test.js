@@ -98,6 +98,26 @@ describe('Admin API', function () {
       expect(res.body[0].key).to.equal(testKey);
     });
 
+    it('should return usage_count of 0 for keys with no usage', async function () {
+      const res = await request(app)
+        .get('/v1/admin/keys')
+        .set('x-admin-token', ADMIN_TOKEN);
+      expect(res.status).to.equal(200);
+      const found = res.body.find(k => k.key === testKey);
+      expect(found).to.exist;
+      expect(found.usage_count).to.equal(0);
+    });
+
+    it('should return correct usage_count for keys with usage', async function () {
+      await db.run('INSERT INTO apiUsage (key, model) VALUES (?, ?)', [testKey, 'llama3']);
+      await db.run('INSERT INTO apiUsage (key, model) VALUES (?, ?)', [testKey, 'llama3']);
+      const res = await request(app)
+        .get('/v1/admin/keys')
+        .set('x-admin-token', ADMIN_TOKEN);
+      const found = res.body.find(k => k.key === testKey);
+      expect(found.usage_count).to.equal(2);
+    });
+
     it('should create a new API key', async function () {
       const res = await request(app)
         .post('/v1/admin/keys')
