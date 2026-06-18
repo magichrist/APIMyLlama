@@ -16,7 +16,7 @@
     "ui": "cd ui && npm run dev"
   },
   "dependencies": {
-    "axios": "^1.13.5",
+    "axios": "^1.16.0",
     "compression": "^1.7.5",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
